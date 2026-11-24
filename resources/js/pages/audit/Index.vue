@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Badge from '@/components/seo/Badge.vue';
 import EmptyState from '@/components/seo/EmptyState.vue';
+import OwnershipNotice from '@/components/seo/OwnershipNotice.vue';
 import Pagination from '@/components/seo/Pagination.vue';
 import Panel from '@/components/seo/Panel.vue';
 import SelectField from '@/components/seo/SelectField.vue';
@@ -67,6 +68,8 @@ onBeforeUnmount(() => clearInterval(timer));
                 ><Play /> {{ running ? 'Crawl running…' : 'Re-run audit' }}</Button
             >
         </template>
+
+        <OwnershipNotice />
 
         <Panel title="Crawl history">
             <div class="overflow-x-auto">

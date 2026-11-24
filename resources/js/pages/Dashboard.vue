@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Badge from '@/components/seo/Badge.vue';
+import OwnershipNotice from '@/components/seo/OwnershipNotice.vue';
 import Panel from '@/components/seo/Panel.vue';
 import Stat from '@/components/seo/Stat.vue';
 import TrendChart from '@/components/seo/TrendChart.vue';
@@ -46,6 +47,8 @@ const startCrawl = () => router.post(route('audit.crawl', website.value.id), {},
                 ><Play /> {{ running ? 'Crawl running…' : 'Run crawl' }}</Button
             >
         </template>
+
+        <OwnershipNotice />
 
         <div v-if="overview.next_actions.length" class="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
             <h2 class="text-sm font-semibold text-blue-900 dark:text-blue-100">Recommended next steps</h2>
