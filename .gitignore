@@ -27,3 +27,4 @@ yarn-error.log
 /crawler-service/.env
 __pycache__/
 .pytest_cache/
+/crawler-service/data

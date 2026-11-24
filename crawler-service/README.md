@@ -20,4 +20,9 @@ Endpoints (Bearer token required except `/health`):
 
 Safety: http/https only, DNS re-checked before every request and redirect, private/reserved/metadata
 IPs blocked, robots.txt respected, 1s+ per-host delay (honours Crawl-delay up to 10s), 5 MB body cap,
-5 redirects max, same-site only, page and depth caps. Results are held in memory for one hour.
+5 redirects max, same-site only, page and depth caps.
+
+Persistence: each crawl is written to `data/<crawl_id>/` (`pages.jsonl` + `meta.json`, override with
+`CRAWLER_DATA_DIR`) and kept for one hour after it finishes. After a restart, finished crawls are served
+again; a crawl interrupted mid-run is reported as `partial` (or `failed` if it had no pages), so Laravel
+keeps the pages it already collected and only resolves issues on pages that were actually rechecked.

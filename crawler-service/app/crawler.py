@@ -7,6 +7,7 @@ import time
 import urllib.robotparser
 from collections import deque
 from dataclasses import dataclass, field
+from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import httpx
@@ -56,6 +57,21 @@ class CrawlState:
     sitemaps: list[str] = field(default_factory=list)
     pages_found: int = 0
     finished_at: float | None = None
+    started_at: float | None = None
+    storage_dir: Path | None = None
+
+    def add_page(self, page: dict) -> None:
+        self.pages.append(page)
+        if self.storage_dir is not None:
+            from .store import append_page
+
+            append_page(self, page)
+
+    def persist(self) -> None:
+        if self.storage_dir is not None:
+            from .store import save_meta
+
+            save_meta(self)
 
 
 class TooLarge(Exception):
@@ -224,11 +240,11 @@ class Crawler:
                     self.state.errors.append({"url": url, "error": f"blocked: {exc}"})
                     continue
                 except (httpx.HTTPError, TooLarge) as exc:
-                    self.state.pages.append({"url": url, "status_code": None, "depth": depth, "error": str(exc) or exc.__class__.__name__, "links": []})
+                    self.state.add_page({"url": url, "status_code": None, "depth": depth, "error": str(exc) or exc.__class__.__name__, "links": []})
                     crawled += 1
                     continue
                 page = self._record(depth, res)
-                self.state.pages.append(page)
+                self.state.add_page(page)
                 crawled += 1
 
                 if depth < self.cfg.max_depth:
@@ -253,4 +269,5 @@ class Crawler:
             self.state.status = "failed"
         finally:
             self.state.finished_at = time.time()
+            self.state.persist()
             await self.client.aclose()

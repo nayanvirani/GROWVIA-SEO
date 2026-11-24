@@ -12,6 +12,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from . import store
 from .crawler import CrawlConfig, Crawler, CrawlState
 from .safety import UnsafeUrlError, site_host, validate_url
 
@@ -31,7 +32,7 @@ RESULT_TTL_SECONDS = 3600
 MAX_CONCURRENT = int(os.getenv("CRAWLER_MAX_CONCURRENT_CRAWLS", "3"))
 
 app = FastAPI(title="Growvia crawler service", version="1.0.0", docs_url=None, redoc_url=None)
-_jobs: dict[str, CrawlState] = {}
+_jobs: dict[str, CrawlState] = store.load_all(store.data_dir(), RESULT_TTL_SECONDS)
 _semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
 
@@ -56,7 +57,7 @@ class CrawlRequest(BaseModel):
 def _cleanup() -> None:
     now = time.time()
     for key in [k for k, s in _jobs.items() if s.finished_at and now - s.finished_at > RESULT_TTL_SECONDS]:
-        _jobs.pop(key, None)
+        store.remove(_jobs.pop(key))
 
 
 async def _run(crawler: Crawler) -> None:
@@ -83,7 +84,7 @@ async def start_crawl(req: CrawlRequest) -> dict:
         raise HTTPException(status_code=422, detail="start_url host does not match the registered website host")
 
     crawl_id = f"crawl_{uuid.uuid4().hex}"
-    state = CrawlState()
+    state = store.attach(CrawlState(), crawl_id, store.data_dir())
     _jobs[crawl_id] = state
     crawler = Crawler(CrawlConfig(
         start_url=start, allowed_host=host, max_pages=req.max_pages, max_depth=req.max_depth,
