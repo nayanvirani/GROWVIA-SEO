@@ -1,8 +1,8 @@
-fastapi==0.115.12
-uvicorn[standard]==0.34.2
-httpx==0.28.1
-beautifulsoup4==4.13.4
-lxml==5.4.0
-pydantic==2.11.4
-pytest==8.3.5
-pytest-asyncio==0.26.0
+fastapi>=0.118,<1.0
+uvicorn[standard]>=0.37,<1.0
+httpx>=0.28.1,<0.29
+beautifulsoup4>=4.13.5,<5
+lxml>=6.0.2,<7
+pydantic>=2.12,<3
+pytest>=8.4,<9
+pytest-asyncio>=1.2,<2
