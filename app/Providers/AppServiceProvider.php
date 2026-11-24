@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models;
 use App\Policies\WebsitePolicy;
 use App\Policies\WebsiteResourcePolicy;
+use App\Policies\WorkspacePolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -21,6 +22,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Models\Website::class, WebsitePolicy::class);
+        Gate::policy(Models\Workspace::class, WorkspacePolicy::class);
 
         foreach ([
             Models\CrawlRun::class, Models\WebsitePage::class, Models\SeoIssue::class, Models\Keyword::class,

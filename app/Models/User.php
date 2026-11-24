@@ -60,6 +60,17 @@ class User extends Authenticatable
         return $this->belongsTo(Workspace::class, 'current_workspace_id');
     }
 
+    /** Current workspace, falling back to another membership if access was removed. */
+    public function activeWorkspace(): ?Workspace
+    {
+        $workspace = $this->current_workspace_id ? $this->workspaces()->whereKey($this->current_workspace_id)->first() : null;
+        if (! $workspace && ($workspace = $this->workspaces()->first())) {
+            $this->forceFill(['current_workspace_id' => $workspace->id])->saveQuietly();
+        }
+
+        return $workspace;
+    }
+
     public function belongsToWorkspace(string $workspaceId): bool
     {
         return $this->workspaces()->whereKey($workspaceId)->exists();

@@ -6,7 +6,18 @@ use Inertia\Inertia;
 
 Route::get('/', fn () => auth()->check() ? redirect()->route('dashboard') : Inertia::render('Welcome'))->name('home');
 
+Route::get('invitations/{token}', [Web\TeamController::class, 'showInvitation'])->name('invitations.show');
+
 Route::middleware(['auth'])->group(function () {
+    Route::post('invitations/{token}/accept', [Web\TeamController::class, 'acceptInvitation'])->name('invitations.accept');
+    Route::get('team', [Web\TeamController::class, 'index'])->name('team.index');
+    Route::patch('team', [Web\TeamController::class, 'updateWorkspace'])->name('team.update');
+    Route::post('team/invitations', [Web\TeamController::class, 'invite'])->name('team.invite');
+    Route::delete('team/invitations/{invitation}', [Web\TeamController::class, 'revoke'])->name('team.invitations.revoke');
+    Route::patch('team/members/{member}', [Web\TeamController::class, 'updateMember'])->name('team.members.update');
+    Route::delete('team/members/{member}', [Web\TeamController::class, 'removeMember'])->name('team.members.remove');
+    Route::post('workspaces/{workspace}/switch', [Web\TeamController::class, 'switch'])->name('workspaces.switch');
+
     Route::get('dashboard', [Web\WebsiteController::class, 'dashboard'])->name('dashboard');
     Route::get('websites/create', [Web\WebsiteController::class, 'create'])->name('websites.create');
     Route::post('websites', [Web\WebsiteController::class, 'store'])->name('websites.store');

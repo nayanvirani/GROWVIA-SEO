@@ -8,7 +8,9 @@ class StoreWebsiteRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->current_workspace_id !== null;
+        $workspace = $this->user()?->activeWorkspace();
+
+        return $workspace !== null && $this->user()->can('createWebsite', $workspace);
     }
 
     public function rules(): array

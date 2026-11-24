@@ -27,7 +27,15 @@ const siteNav = computed(() => {
         { title: 'Website Settings', url: route('websites.settings', w.id), icon: Settings2 },
     ];
 });
-const workspaceNav = [{ title: 'Integrations', url: route('integrations.index'), icon: Plug }];
+const workspaceNav = [
+    { title: 'Team', url: route('team.index'), icon: Users },
+    { title: 'Integrations', url: route('integrations.index'), icon: Plug },
+];
+const canManage = computed(() => ['owner', 'admin'].includes(page.props.workspace?.role ?? ''));
+function switchWorkspace(e: Event) {
+    const id = (e.target as HTMLSelectElement).value;
+    if (id && id !== page.props.workspace?.id) router.post(route('workspaces.switch', id));
+}
 
 function switchWebsite(e: Event) {
     const id = (e.target as HTMLSelectElement).value;
@@ -48,6 +56,17 @@ function switchWebsite(e: Event) {
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
+            <div v-if="page.props.workspaces.length > 1" class="px-2 group-data-[collapsible=icon]:hidden">
+                <label class="mb-1 block text-xs text-muted-foreground" for="workspace-switcher">Workspace</label>
+                <select
+                    id="workspace-switcher"
+                    :value="page.props.workspace?.id"
+                    class="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    @change="switchWorkspace"
+                >
+                    <option v-for="w in page.props.workspaces" :key="w.id" :value="w.id">{{ w.name }}</option>
+                </select>
+            </div>
             <div class="px-2 group-data-[collapsible=icon]:hidden">
                 <label class="mb-1 block text-xs text-muted-foreground" for="website-switcher">Website</label>
                 <select
@@ -58,7 +77,7 @@ function switchWebsite(e: Event) {
                 >
                     <option value="" disabled>Select a website</option>
                     <option v-for="w in page.props.websites" :key="w.id" :value="w.id">{{ w.name }} ({{ w.normalized_host }})</option>
-                    <option value="__new">+ Add website…</option>
+                    <option v-if="canManage" value="__new">+ Add website…</option>
                 </select>
             </div>
         </SidebarHeader>
@@ -66,7 +85,7 @@ function switchWebsite(e: Event) {
         <SidebarContent>
             <NavMain v-if="siteNav.length" :items="siteNav" label="Website" />
             <NavMain :items="workspaceNav" label="Workspace" />
-            <div v-if="!siteNav.length" class="px-4 group-data-[collapsible=icon]:hidden">
+            <div v-if="!siteNav.length && canManage" class="px-4 group-data-[collapsible=icon]:hidden">
                 <Link :href="route('websites.create')" class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                     ><Plus class="h-4 w-4" /> Add website</Link
                 >

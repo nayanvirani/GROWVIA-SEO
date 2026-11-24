@@ -13,12 +13,12 @@ class WebsiteController extends ApiController
 {
     public function index(Request $request): JsonResponse
     {
-        return $this->ok($request->user()->currentWorkspace->websites()->orderBy('name')->get());
+        return $this->ok($request->user()->activeWorkspace()->websites()->orderBy('name')->get());
     }
 
     public function store(StoreWebsiteRequest $request, WebsiteService $websites): JsonResponse
     {
-        return $this->ok($websites->create($request->user()->currentWorkspace, $request->validated()), 201);
+        return $this->ok($websites->create($request->user()->activeWorkspace(), $request->validated()), 201);
     }
 
     public function overview(Website $website, OverviewService $overview): JsonResponse

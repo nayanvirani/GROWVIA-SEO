@@ -28,7 +28,8 @@ export interface WebsiteSummary {
 export interface SharedData {
     name: string;
     auth: Auth;
-    workspace: { id: string; name: string } | null;
+    workspace: { id: string; name: string; role: string } | null;
+    workspaces: { id: string; name: string }[];
     websites: WebsiteSummary[];
     currentWebsite: WebsiteSummary | null;
     providers: { ai: string; seo_data: string };

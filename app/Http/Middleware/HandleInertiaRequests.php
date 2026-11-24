@@ -26,8 +26,12 @@ class HandleInertiaRequests extends Middleware
         return array_merge(parent::share($request), [
             'name' => config('app.name'),
             'auth' => ['user' => $user],
-            'workspace' => fn () => $user?->currentWorkspace?->only(['id', 'name']),
-            'websites' => fn () => $user?->currentWorkspace?->websites()->orderBy('name')->get(['id', 'name', 'normalized_host']) ?? [],
+            'workspace' => fn () => ($w = $user?->activeWorkspace())
+                ? $w->only(['id', 'name']) + ['role' => $user->workspaceRole($w->id)]
+                : null,
+            'workspaces' => fn () => $user?->workspaces()->orderBy('name')->get(['workspaces.id', 'name'])
+                ->map(fn ($w) => ['id' => $w->id, 'name' => $w->name]) ?? [],
+            'websites' => fn () => $user?->activeWorkspace()?->websites()->orderBy('name')->get(['id', 'name', 'normalized_host']) ?? [],
             'currentWebsite' => fn () => $current instanceof Website
                 ? $current->only(['id', 'name', 'base_url', 'normalized_host', 'ownership_confirmed', 'status'])
                 : null,

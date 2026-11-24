@@ -17,7 +17,7 @@ class IntegrationController extends Controller
 {
     public function index(Request $request): Response
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $request->user()->activeWorkspace();
         $gsc = $workspace->integrations()->where('provider', 'search_console')->first();
 
         return Inertia::render('integrations/Index', [
@@ -31,6 +31,7 @@ class IntegrationController extends Controller
                 'properties' => $gsc?->metadata_json['properties'] ?? [],
             ],
             'crawler' => ['base_url' => config('seo.crawler.base_url'), 'healthy' => $this->crawlerHealthy()],
+            'canManage' => $request->user()->can('manage', $workspace),
             'usage' => ProviderUsage::where('workspace_id', $workspace->id)->where('created_at', '>=', now()->subDays(30))
                 ->selectRaw('provider, SUM(request_count) requests, SUM(units) units, SUM(estimated_cost) cost')->groupBy('provider')->get(),
         ]);
@@ -38,6 +39,7 @@ class IntegrationController extends Controller
 
     public function searchConsoleRedirect(Request $request): RedirectResponse
     {
+        $this->authorize('manage', $request->user()->activeWorkspace());
         abort_unless(filled(config('seo.google.client_id')), 400, 'Google OAuth is not configured.');
         $state = Str::random(40);
         $request->session()->put('gsc_oauth_state', $state);
@@ -55,6 +57,7 @@ class IntegrationController extends Controller
 
     public function searchConsoleCallback(Request $request): RedirectResponse
     {
+        $this->authorize('manage', $request->user()->activeWorkspace());
         $expected = $request->session()->pull('gsc_oauth_state');
         if (! $expected || ! hash_equals($expected, (string) $request->query('state')) || ! $request->query('code')) {
             return redirect()->route('integrations.index')->with('error', 'Search Console connection was cancelled or invalid.');
@@ -75,7 +78,7 @@ class IntegrationController extends Controller
         $properties = collect($sites)->where('permissionLevel', '!=', 'siteUnverifiedUser')->pluck('siteUrl')->values()->all();
 
         Integration::updateOrCreate(
-            ['workspace_id' => $request->user()->current_workspace_id, 'provider' => 'search_console'],
+            ['workspace_id' => $request->user()->activeWorkspace()->id, 'provider' => 'search_console'],
             ['status' => 'connected', 'encrypted_credentials' => ['refresh_token' => $token->json('refresh_token')],
                 'metadata_json' => ['properties' => $properties, 'property' => $properties[0] ?? null, 'connected_at' => now()->toIso8601String()]]
         );
@@ -85,7 +88,8 @@ class IntegrationController extends Controller
 
     public function searchConsoleProperty(Request $request): RedirectResponse
     {
-        $integration = Integration::where('workspace_id', $request->user()->current_workspace_id)->where('provider', 'search_console')->firstOrFail();
+        $this->authorize('manage', $request->user()->activeWorkspace());
+        $integration = Integration::where('workspace_id', $request->user()->activeWorkspace()->id)->where('provider', 'search_console')->firstOrFail();
         $data = $request->validate(['property' => ['required', 'string', Rule::in($integration->metadata_json['properties'] ?? [])]]);
         $integration->update(['metadata_json' => array_merge($integration->metadata_json, ['property' => $data['property']])]);
 
@@ -94,7 +98,8 @@ class IntegrationController extends Controller
 
     public function searchConsoleDisconnect(Request $request): RedirectResponse
     {
-        Integration::where('workspace_id', $request->user()->current_workspace_id)->where('provider', 'search_console')
+        $this->authorize('manage', $request->user()->activeWorkspace());
+        Integration::where('workspace_id', $request->user()->activeWorkspace()->id)->where('provider', 'search_console')
             ->update(['status' => 'disconnected', 'encrypted_credentials' => null]);
 
         return back()->with('success', 'Search Console disconnected.');

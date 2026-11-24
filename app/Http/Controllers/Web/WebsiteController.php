@@ -19,21 +19,29 @@ class WebsiteController extends Controller
 
     public function dashboard(Request $request): RedirectResponse
     {
-        $workspace = $request->user()->currentWorkspace;
+        $workspace = $request->user()->activeWorkspace();
         $website = $workspace->websites()->find($request->session()->get('current_website_id'))
             ?? $workspace->websites()->oldest()->first();
 
-        return $website ? redirect()->route('websites.show', $website) : redirect()->route('websites.create');
+        if ($website) {
+            return redirect()->route('websites.show', $website);
+        }
+
+        return $request->user()->can('createWebsite', $workspace)
+            ? redirect()->route('websites.create')
+            : redirect()->route('team.index')->with('success', 'No websites in this workspace yet. Ask an owner or admin to add one.');
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        $this->authorize('createWebsite', $request->user()->activeWorkspace());
+
         return Inertia::render('websites/Create');
     }
 
     public function store(StoreWebsiteRequest $request): RedirectResponse
     {
-        $website = $this->websites->create($request->user()->currentWorkspace, $request->validated());
+        $website = $this->websites->create($request->user()->activeWorkspace(), $request->validated());
 
         return redirect()->route('websites.show', $website)->with('success', 'Website project created.');
     }

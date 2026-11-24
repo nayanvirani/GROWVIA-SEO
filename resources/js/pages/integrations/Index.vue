@@ -11,6 +11,7 @@ const props = defineProps<{
     searchConsole: { oauth_configured: boolean; status: string; property: string | null; properties: string[] };
     crawler: { base_url: string; healthy: boolean };
     usage: { provider: string; requests: number; units: number; cost: number }[];
+    canManage: boolean;
 }>();
 const setProperty = (e: Event) => router.patch(route('integrations.search-console.property'), { property: (e.target as HTMLSelectElement).value });
 const disconnect = () => router.delete(route('integrations.search-console.disconnect'));
@@ -50,14 +51,14 @@ const disconnect = () => router.delete(route('integrations.search-console.discon
             <Panel title="Google Search Console" description="Read-only access to clicks, impressions, CTR and position.">
                 <div class="grid gap-2 text-sm">
                     <p>Status: <Badge :value="searchConsole.status" /></p>
-                    <template v-if="searchConsole.status === 'connected'">
+                    <template v-if="searchConsole.status === 'connected' && canManage">
                         <label class="text-xs text-muted-foreground">Property</label>
                         <select :value="searchConsole.property ?? ''" class="h-9 rounded-md border bg-background px-2" @change="setProperty">
                             <option v-for="p in searchConsole.properties" :key="p" :value="p">{{ p }}</option>
                         </select>
                         <div><Button size="sm" variant="ghost" @click="disconnect">Disconnect</Button></div>
                     </template>
-                    <template v-else-if="searchConsole.oauth_configured">
+                    <template v-else-if="searchConsole.oauth_configured && canManage">
                         <a :href="route('integrations.search-console.redirect')"><Button size="sm">Connect Search Console</Button></a>
                     </template>
                     <p v-else class="text-xs text-muted-foreground">
