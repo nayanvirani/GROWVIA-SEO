@@ -37,7 +37,10 @@ const form = useForm({
     brand_facts: props.settings.brand_facts,
     forbidden_claims: props.settings.forbidden_claims,
 });
-const save = () => form.transform((d) => ({ ...d, target_country: d.target_country || null })).patch(route('websites.update', props.website.id), { preserveScroll: true });
+const save = () =>
+    form
+        .transform((d) => ({ ...d, target_country: d.target_country || null }))
+        .patch(route('websites.update', props.website.id), { preserveScroll: true });
 const startVerify = () => router.post(route('websites.verification.start', props.website.id), {}, { preserveScroll: true });
 const checkVerify = () => router.post(route('websites.verification.check', props.website.id), { token: token.value }, { preserveScroll: true });
 const confirmDelete = ref('');
@@ -54,7 +57,8 @@ const destroy = () => router.delete(route('websites.destroy', props.website.id))
                     <div class="grid grid-cols-2 gap-2">
                         <div class="grid gap-1.5"><Label>Language</Label><Input v-model="form.language" /></div>
                         <div class="grid gap-1.5">
-                            <Label>Target country</Label><Input v-model="form.target_country" maxlength="2" placeholder="Choose explicitly, e.g. us" />
+                            <Label>Target country</Label
+                            ><Input v-model="form.target_country" maxlength="2" placeholder="Choose explicitly, e.g. us" />
                             <InputError :message="form.errors.target_country" />
                         </div>
                     </div>
@@ -68,18 +72,32 @@ const destroy = () => router.delete(route('websites.destroy', props.website.id))
                 <div class="grid gap-3">
                     <label class="flex items-center gap-2 text-sm"><input v-model="form.crawl_enabled" type="checkbox" /> Crawling enabled</label>
                     <div class="grid grid-cols-3 gap-2">
-                        <div class="grid gap-1.5"><Label>Max pages</Label><Input v-model="form.crawl_max_pages" type="number" min="1" /><InputError :message="form.errors.crawl_max_pages" /></div>
-                        <div class="grid gap-1.5"><Label>Max depth</Label><Input v-model="form.crawl_max_depth" type="number" min="0" max="10" /></div>
-                        <div class="grid gap-1.5"><Label>Frequency</Label><SelectField v-model="form.crawl_frequency" :options="['weekly', 'monthly', 'manual']" /></div>
+                        <div class="grid gap-1.5">
+                            <Label>Max pages</Label><Input v-model="form.crawl_max_pages" type="number" min="1" /><InputError
+                                :message="form.errors.crawl_max_pages"
+                            />
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label>Max depth</Label><Input v-model="form.crawl_max_depth" type="number" min="0" max="10" />
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label>Frequency</Label><SelectField v-model="form.crawl_frequency" :options="['weekly', 'monthly', 'manual']" />
+                        </div>
                     </div>
-                    <div class="grid gap-1.5"><Label>Excluded paths (one per line)</Label><TextArea v-model="form.exclusion_paths" :rows="3" placeholder="/cart&#10;/account" /></div>
+                    <div class="grid gap-1.5">
+                        <Label>Excluded paths (one per line)</Label
+                        ><TextArea v-model="form.exclusion_paths" :rows="3" placeholder="/cart&#10;/account" />
+                    </div>
                 </div>
             </Panel>
             <Panel title="Brand & AI context" description="AI drafts may only use facts you provide here or on crawled pages." class="lg:col-span-2">
                 <div class="grid gap-3 lg:grid-cols-2">
                     <div class="grid gap-1.5"><Label>Description</Label><TextArea v-model="form.description" :rows="3" /></div>
                     <div class="grid gap-1.5"><Label>Brand voice</Label><TextArea v-model="form.brand_voice" :rows="3" /></div>
-                    <div class="grid gap-1.5"><Label>Approved brand facts</Label><TextArea v-model="form.brand_facts" :rows="6" placeholder="Features, integrations and claims you have verified." /></div>
+                    <div class="grid gap-1.5">
+                        <Label>Approved brand facts</Label
+                        ><TextArea v-model="form.brand_facts" :rows="6" placeholder="Features, integrations and claims you have verified." />
+                    </div>
                     <div class="grid gap-1.5"><Label>Forbidden claims</Label><TextArea v-model="form.forbidden_claims" :rows="6" /></div>
                 </div>
             </Panel>
@@ -94,17 +112,23 @@ const destroy = () => router.delete(route('websites.destroy', props.website.id))
             </p>
             <div v-if="token" class="space-y-2">
                 <p class="text-sm">Add this tag to the &lt;head&gt; of your homepage, deploy it, then check:</p>
-                <pre class="overflow-x-auto rounded-md bg-muted p-3 text-xs">&lt;meta name="{{ verification.meta_name }}" content="{{ token }}"&gt;</pre>
+                <pre class="overflow-x-auto rounded-md bg-muted p-3 text-xs">
+&lt;meta name="{{ verification.meta_name }}" content="{{ token }}"&gt;</pre
+                >
                 <Button variant="outline" @click="checkVerify">Check now</Button>
             </div>
             <Button v-else variant="outline" @click="startVerify">Generate verification tag</Button>
         </Panel>
 
         <Panel title="Danger zone">
-            <p class="mb-2 text-sm text-muted-foreground">Deleting removes all pages, issues, keywords, drafts and prospects for this website. Type the host to confirm.</p>
+            <p class="mb-2 text-sm text-muted-foreground">
+                Deleting removes all pages, issues, keywords, drafts and prospects for this website. Type the host to confirm.
+            </p>
             <div class="flex gap-2">
                 <Input v-model="confirmDelete" :placeholder="page.props.currentWebsite?.normalized_host" class="max-w-sm" />
-                <Button variant="destructive" :disabled="confirmDelete !== page.props.currentWebsite?.normalized_host" @click="destroy">Delete website</Button>
+                <Button variant="destructive" :disabled="confirmDelete !== page.props.currentWebsite?.normalized_host" @click="destroy"
+                    >Delete website</Button
+                >
             </div>
         </Panel>
     </SeoLayout>

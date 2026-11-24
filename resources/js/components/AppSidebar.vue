@@ -4,20 +4,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import {
-    Activity,
-    BarChart3,
-    FileText,
-    Gauge,
-    Image,
-    KeyRound,
-    Link2,
-    Plug,
-    Plus,
-    Search,
-    Settings2,
-    Workflow,
-} from 'lucide-vue-next';
+import { Activity, BarChart3, FileText, Gauge, Image, KeyRound, Link2, Plug, Plus, Search, Settings2, Workflow } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -80,7 +67,9 @@ function switchWebsite(e: Event) {
             <NavMain v-if="siteNav.length" :items="siteNav" label="Website" />
             <NavMain :items="workspaceNav" label="Workspace" />
             <div v-if="!siteNav.length" class="px-4 group-data-[collapsible=icon]:hidden">
-                <Link :href="route('websites.create')" class="inline-flex items-center gap-1 text-sm text-primary hover:underline"><Plus class="h-4 w-4" /> Add website</Link>
+                <Link :href="route('websites.create')" class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                    ><Plus class="h-4 w-4" /> Add website</Link
+                >
             </div>
         </SidebarContent>
 

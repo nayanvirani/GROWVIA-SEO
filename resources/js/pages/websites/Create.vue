@@ -20,11 +20,16 @@ const form = useForm({
 });
 
 const submit = () =>
-    form.transform((d) => ({ ...d, target_country: d.target_country || null, competitors: d.competitors.filter(Boolean) })).post(route('websites.store'));
+    form
+        .transform((d) => ({ ...d, target_country: d.target_country || null, competitors: d.competitors.filter(Boolean) }))
+        .post(route('websites.store'));
 </script>
 
 <template>
-    <SeoLayout title="Add a website" description="Each website is a separate project. Its pages, issues, keywords and content never mix with other projects.">
+    <SeoLayout
+        title="Add a website"
+        description="Each website is a separate project. Its pages, issues, keywords and content never mix with other projects."
+    >
         <form class="grid max-w-3xl gap-4" @submit.prevent="submit">
             <Panel title="Website">
                 <div class="grid gap-4 sm:grid-cols-2">
@@ -55,7 +60,12 @@ const submit = () =>
                     </div>
                     <div class="grid gap-1.5 sm:col-span-2">
                         <Label for="desc">Short description (used as AI context)</Label>
-                        <TextArea id="desc" v-model="form.description" :rows="3" placeholder="What the website offers and who it is for. Facts only." />
+                        <TextArea
+                            id="desc"
+                            v-model="form.description"
+                            :rows="3"
+                            placeholder="What the website offers and who it is for. Facts only."
+                        />
                     </div>
                 </div>
             </Panel>

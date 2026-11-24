@@ -29,10 +29,16 @@ const errorList = computed(() => Object.values(page.props.errors ?? {}));
                 </div>
                 <div class="flex flex-wrap items-center gap-2"><slot name="actions" /></div>
             </div>
-            <div v-if="page.props.flash?.success" class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+            <div
+                v-if="page.props.flash?.success"
+                class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-100"
+            >
                 <CheckCircle2 class="h-4 w-4" /> {{ page.props.flash.success }}
             </div>
-            <div v-if="page.props.flash?.error || errorList.length" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100">
+            <div
+                v-if="page.props.flash?.error || errorList.length"
+                class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100"
+            >
                 <p v-if="page.props.flash?.error" class="flex items-center gap-2"><XCircle class="h-4 w-4" /> {{ page.props.flash.error }}</p>
                 <p v-for="(e, i) in errorList" :key="i" class="flex items-center gap-2"><XCircle class="h-4 w-4" /> {{ e }}</p>
             </div>

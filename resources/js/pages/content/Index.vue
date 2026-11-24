@@ -36,7 +36,8 @@ const form = useForm({
 });
 const create = () => form.post(route('content.briefs.store', w.value.id), { preserveScroll: true, onSuccess: () => form.reset() });
 const generate = (b: any) => router.post(route('content.briefs.generate', [w.value.id, b.id]), {}, { preserveScroll: true });
-const destroy = (b: any) => confirm('Delete this brief?') && router.delete(route('content.briefs.destroy', [w.value.id, b.id]), { preserveScroll: true });
+const destroy = (b: any) =>
+    confirm('Delete this brief?') && router.delete(route('content.briefs.destroy', [w.value.id, b.id]), { preserveScroll: true });
 
 const generating = computed(() => props.briefs.some((b) => b.status === 'generating'));
 let timer: number | undefined;
@@ -50,15 +51,45 @@ const highFlags = (d: any) => (d.quality_flags_json ?? []).filter((q: any) => q.
         <div class="grid gap-4 lg:grid-cols-5">
             <Panel title="New content brief" class="lg:col-span-2">
                 <form class="grid gap-3" @submit.prevent="create">
-                    <div class="grid gap-1.5"><Label>Working title</Label><Input v-model="form.title" required /><InputError :message="form.errors.title" /></div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="grid gap-1.5"><Label>Type</Label><SelectField v-model="form.content_type" :options="['blog_post', 'landing_page']" /></div>
-                        <div class="grid gap-1.5"><Label>Intent</Label><SelectField v-model="form.intent" :options="['informational', 'commercial', 'transactional']" placeholder="Auto" /></div>
+                    <div class="grid gap-1.5">
+                        <Label>Working title</Label><Input v-model="form.title" required /><InputError :message="form.errors.title" />
                     </div>
-                    <div class="grid gap-1.5"><Label>Primary keyword</Label><SelectField v-model="form.primary_keyword_id" :options="keywords.map((k) => ({ value: k.id, label: k.keyword }))" placeholder="None" /></div>
-                    <div class="grid gap-1.5"><Label>Existing page (optional)</Label><SelectField v-model="form.page_id" :options="pages.map((p) => ({ value: p.id, label: path(p.canonical_url) }))" placeholder="New content" /></div>
-                    <div class="grid gap-1.5"><Label>Audience</Label><Input v-model="form.audience" placeholder="Shopify store owners with 100+ orders/month" /></div>
-                    <div class="grid gap-1.5"><Label>Factual source notes</Label><TextArea v-model="form.source_notes" :rows="4" placeholder="Verified facts the draft may use. Anything not here will be flagged for review." /></div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="grid gap-1.5">
+                            <Label>Type</Label><SelectField v-model="form.content_type" :options="['blog_post', 'landing_page']" />
+                        </div>
+                        <div class="grid gap-1.5">
+                            <Label>Intent</Label
+                            ><SelectField v-model="form.intent" :options="['informational', 'commercial', 'transactional']" placeholder="Auto" />
+                        </div>
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label>Primary keyword</Label
+                        ><SelectField
+                            v-model="form.primary_keyword_id"
+                            :options="keywords.map((k) => ({ value: k.id, label: k.keyword }))"
+                            placeholder="None"
+                        />
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label>Existing page (optional)</Label
+                        ><SelectField
+                            v-model="form.page_id"
+                            :options="pages.map((p) => ({ value: p.id, label: path(p.canonical_url) }))"
+                            placeholder="New content"
+                        />
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label>Audience</Label><Input v-model="form.audience" placeholder="Shopify store owners with 100+ orders/month" />
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label>Factual source notes</Label
+                        ><TextArea
+                            v-model="form.source_notes"
+                            :rows="4"
+                            placeholder="Verified facts the draft may use. Anything not here will be flagged for review."
+                        />
+                    </div>
                     <Button :disabled="form.processing">Create brief</Button>
                 </form>
             </Panel>
@@ -71,12 +102,15 @@ const highFlags = (d: any) => (d.quality_flags_json ?? []).filter((q: any) => q.
                             <div class="min-w-0">
                                 <p class="text-sm font-medium">{{ b.title }}</p>
                                 <p class="text-xs text-muted-foreground">
-                                    {{ b.content_type.replace('_', ' ') }}<span v-if="b.primary_keyword"> · {{ b.primary_keyword.keyword }}</span><span v-if="b.page"> · {{ path(b.page.canonical_url) }}</span> · {{ b.drafts_count }} drafts
+                                    {{ b.content_type.replace('_', ' ') }}<span v-if="b.primary_keyword"> · {{ b.primary_keyword.keyword }}</span
+                                    ><span v-if="b.page"> · {{ path(b.page.canonical_url) }}</span> · {{ b.drafts_count }} drafts
                                 </p>
                             </div>
                             <div class="flex items-center gap-2">
                                 <Badge :value="b.status" />
-                                <Button size="sm" variant="outline" :disabled="b.status === 'generating'" @click="generate(b)"><Sparkles /> {{ b.drafts_count ? 'New draft' : 'Generate draft' }}</Button>
+                                <Button size="sm" variant="outline" :disabled="b.status === 'generating'" @click="generate(b)"
+                                    ><Sparkles /> {{ b.drafts_count ? 'New draft' : 'Generate draft' }}</Button
+                                >
                                 <Button size="sm" variant="ghost" @click="destroy(b)"><Trash2 /></Button>
                             </div>
                         </li>
@@ -87,8 +121,13 @@ const highFlags = (d: any) => (d.quality_flags_json ?? []).filter((q: any) => q.
                     <ul class="divide-y">
                         <li v-for="d in drafts" :key="d.id" class="flex flex-wrap items-center justify-between gap-2 py-2">
                             <div class="min-w-0">
-                                <Link :href="route('content.drafts.edit', [w.id, d.id])" class="text-sm font-medium text-primary hover:underline">{{ d.title }}</Link>
-                                <p class="text-xs text-muted-foreground">{{ d.provider }} / {{ d.model }} · updated {{ datetime(d.updated_at) }}<span v-if="highFlags(d)" class="text-red-600"> · {{ highFlags(d) }} high-risk flags</span></p>
+                                <Link :href="route('content.drafts.edit', [w.id, d.id])" class="text-sm font-medium text-primary hover:underline">{{
+                                    d.title
+                                }}</Link>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ d.provider }} / {{ d.model }} · updated {{ datetime(d.updated_at)
+                                    }}<span v-if="highFlags(d)" class="text-red-600"> · {{ highFlags(d) }} high-risk flags</span>
+                                </p>
                             </div>
                             <Badge :value="d.status" />
                         </li>

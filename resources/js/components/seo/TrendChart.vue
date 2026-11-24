@@ -20,8 +20,22 @@ const paths = computed(() => {
 <template>
     <div v-if="paths">
         <svg :viewBox="`0 0 ${W} ${H}`" class="h-36 w-full" preserveAspectRatio="none" role="img" aria-label="Clicks and impressions trend">
-            <path :d="paths.impressions" fill="none" stroke="currentColor" class="text-violet-400" stroke-width="2" vector-effect="non-scaling-stroke" />
-            <path :d="paths.clicks" fill="none" stroke="currentColor" class="text-blue-600 dark:text-blue-400" stroke-width="2.5" vector-effect="non-scaling-stroke" />
+            <path
+                :d="paths.impressions"
+                fill="none"
+                stroke="currentColor"
+                class="text-violet-400"
+                stroke-width="2"
+                vector-effect="non-scaling-stroke"
+            />
+            <path
+                :d="paths.clicks"
+                fill="none"
+                stroke="currentColor"
+                class="text-blue-600 dark:text-blue-400"
+                stroke-width="2.5"
+                vector-effect="non-scaling-stroke"
+            />
         </svg>
         <div class="mt-2 flex justify-between text-xs text-muted-foreground">
             <span>{{ points[0].date }}</span>
