@@ -4,9 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\WorkspaceInvitation;
-use App\Notifications\WorkspaceInvitationSent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class TeamTest extends TestCase
@@ -15,16 +14,12 @@ class TeamTest extends TestCase
 
     private function inviteAndCaptureToken(User $owner, string $email, string $role): string
     {
-        $token = null;
-        Notification::fake();
-        $this->actingAs($owner)->post(route('team.invite'), ['email' => $email, 'role' => $role])->assertSessionHasNoErrors();
-        Notification::assertSentOnDemand(WorkspaceInvitationSent::class, function ($n, $channels, $notifiable) use ($email, &$token) {
-            $token = $n->token;
+        Mail::fake();
+        $response = $this->actingAs($owner)->post(route('team.invite'), ['email' => $email, 'role' => $role])->assertSessionHasNoErrors();
+        $link = $response->getSession()->get('flash_data')['invite_link'];
+        Mail::assertNothingOutgoing();
 
-            return $notifiable->routes['mail'] === strtolower($email);
-        });
-
-        return $token;
+        return basename(parse_url($link, PHP_URL_PATH));
     }
 
     public function test_invite_accept_and_role_based_access()
@@ -49,7 +44,7 @@ class TeamTest extends TestCase
         $this->actingAs($viewer)->patch(route('websites.update', $website), ['name' => 'x'])->assertForbidden();
         $this->actingAs($viewer)->post(route('websites.store'), ['name' => 'X', 'base_url' => 'https://x.com', 'language' => 'en', 'ownership_confirmed' => true])->assertForbidden();
         $this->actingAs($viewer)->post(route('team.invite'), ['email' => 'a@b.com', 'role' => 'viewer'])->assertForbidden();
-        $this->actingAs($viewer)->get(route('integrations.search-console.redirect'))->assertForbidden();
+        $this->actingAs($viewer)->patch(route('providers.update', 'ai'), ['preset' => 'mock'])->assertForbidden();
 
         // Token cannot be reused.
         $this->actingAs($viewer)->post(route('invitations.accept', $token))->assertSessionHasErrors('invitation');

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Backlink\BacklinkService;
 use App\Models\BacklinkProspect;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -37,18 +38,13 @@ class BacklinkTest extends TestCase
         $this->assertStringContainsString('shopify-blog.example.com', $export);
     }
 
-    public function test_competitor_import_outreach_requires_approval_before_sent()
+    public function test_outreach_requires_approval_before_marking_sent()
     {
         [$user, $website] = $this->userWithWebsite();
-        $this->actingAs($user)->post(route('backlinks.competitors.store', $website), ['domain' => 'https://www.rival.com/'])->assertRedirect();
-        $competitor = $website->competitors()->first();
-        $this->assertSame('rival.com', $competitor->domain);
+        $prospect = app(BacklinkService::class)->upsertProspect($website, [
+            'source_url' => 'https://ecommerce-blog.example.com/blog/best-shopify-tools', 'page_title' => 'Best Shopify tools for merchants',
+        ], 'manual');
 
-        $this->actingAs($user)->post(route('backlinks.competitors.import', [$website, $competitor]))->assertRedirect();
-        $this->assertSame(5, $website->backlinks()->count());
-        $this->assertSame(1, BacklinkProspect::where('status', 'rejected')->count());
-
-        $prospect = BacklinkProspect::where('status', 'discovered')->orderByDesc('score')->first();
         $this->actingAs($user)->post(route('backlinks.outreach.store', [$website, $prospect]))->assertRedirect();
         $outreach = $prospect->outreachDrafts()->first();
         $this->assertSame('draft', $outreach->status);
@@ -59,8 +55,12 @@ class BacklinkTest extends TestCase
         $this->assertNotNull($outreach->fresh()->sent_at);
         $this->assertSame('contacted', $prospect->fresh()->status);
 
-        $rejected = BacklinkProspect::where('status', 'rejected')->first();
-        $this->actingAs($user)->post(route('backlinks.outreach.store', [$website, $rejected]))->assertSessionHasErrors('prospect');
+        $prospect->update(['status' => 'rejected']);
+        $this->actingAs($user)->post(route('backlinks.outreach.store', [$website, $prospect]))->assertSessionHasErrors('prospect');
+
+        $competitor = $website->competitors()->create(['domain' => 'rival.com']);
+        $this->actingAs($user)->patch(route('backlinks.competitors.toggle', [$website, $competitor]));
+        $this->assertFalse($competitor->fresh()->active);
         $this->actingAs($user)->get(route('backlinks.index', $website))->assertOk();
     }
 }

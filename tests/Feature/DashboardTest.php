@@ -30,6 +30,6 @@ class DashboardTest extends TestCase
 
         $this->actingAs($user)->get('/dashboard')->assertRedirect(route('websites.show', $website));
         $this->actingAs($user)->get(route('websites.show', $website))->assertOk()
-            ->assertInertia(fn ($page) => $page->component('Dashboard')->has('overview.next_actions'));
+            ->assertInertia(fn ($page) => $page->component('Dashboard')->has('overview.todo')->has('overview.autopilot'));
     }
 }

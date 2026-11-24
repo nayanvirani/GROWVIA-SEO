@@ -100,7 +100,14 @@ const highFlags = (d: any) => (d.quality_flags_json ?? []).filter((q: any) => q.
                     <ul class="divide-y">
                         <li v-for="b in briefs" :key="b.id" class="flex flex-wrap items-center justify-between gap-2 py-2">
                             <div class="min-w-0">
-                                <p class="text-sm font-medium">{{ b.title }}</p>
+                                <p class="text-sm font-medium">
+                                    {{ b.title }}
+                                    <span
+                                        v-if="b.source === 'autopilot'"
+                                        class="ml-1 rounded bg-violet-100 px-1.5 py-0.5 text-xs font-normal text-violet-800"
+                                        >picked by autopilot</span
+                                    >
+                                </p>
                                 <p class="text-xs text-muted-foreground">
                                     {{ b.content_type.replace('_', ' ') }}<span v-if="b.primary_keyword"> · {{ b.primary_keyword.keyword }}</span
                                     ><span v-if="b.page"> · {{ path(b.page.canonical_url) }}</span> · {{ b.drafts_count }} drafts

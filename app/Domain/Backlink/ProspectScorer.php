@@ -47,11 +47,13 @@ class ProspectScorer
 
         $niche = collect(self::NICHE_TERMS)->filter(fn ($t) => str_contains($text, $t))->count();
         $audience = collect(self::AUDIENCE_TERMS)->filter(fn ($t) => str_contains($text, $t))->count();
-        $editorial = preg_match('#/(blog|guides?|resources?|library|articles?|learn)/#i', (string) ($p['source_url'] ?? '')) ? 1 : 0;
+        $editorial = ! empty($p['editorial_hint']) || preg_match('#/(blog|guides?|resources?|library|articles?|learn)/#i', (string) ($p['source_url'] ?? '')) ? 1 : 0;
 
+        $competitors = (int) ($p['competitor_links'] ?? 0);
         $b = [
-            'niche_relevance' => ['points' => min(25, $niche * 9), 'evidence' => "{$niche} niche terms in title/URL"],
-            'editorial_quality' => ['points' => $editorial ? 16 : 6, 'evidence' => $editorial ? 'Editorial/resource URL path' : 'No editorial signal in URL'],
+            'niche_relevance' => ['points' => min(25, $niche * 7 + min($competitors, 2) * 6),
+                'evidence' => "{$niche} niche terms in title/URL".($competitors ? "; already links to {$competitors} competitor(s)" : '')],
+            'editorial_quality' => ['points' => $editorial ? 16 : 6, 'evidence' => $editorial ? 'Editorial article, list or resource page' : 'No editorial signal'],
             'organic_visibility' => isset($p['organic_traffic'])
                 ? ['points' => (int) min(15, round(log10(max((int) $p['organic_traffic'], 1)) * 3)), 'evidence' => "Provider traffic estimate: {$p['organic_traffic']}"]
                 : ['points' => 0, 'evidence' => 'unavailable'],
@@ -70,8 +72,11 @@ class ProspectScorer
 
         $hardReject = (bool) array_intersect($flags, ['link_farm_terms', 'malware', 'hacked', 'private_network', 'paid_link_scheme']);
 
+        // A competitor's own blog rarely recommends rivals: keep it, but lower the priority.
+        $penalty = in_array('competitor_owned', $flags, true) ? 15 : 0;
+
         return [
-            'score' => $hardReject ? 0 : array_sum(array_column($b, 'points')),
+            'score' => $hardReject ? 0 : max(0, array_sum(array_column($b, 'points')) - $penalty),
             'breakdown' => $b,
             'risk_flags' => array_values(array_unique($flags)),
             'hard_reject' => $hardReject,

@@ -3,7 +3,7 @@
 namespace App\Domain\AI;
 
 use App\Models\Website;
-use App\Providers\AI\AiContentProvider;
+use App\Providers\AI\AiProviderFactory;
 use App\Support\ActivityLogger;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -36,13 +36,16 @@ TXT;
         'image_brief' => ['brief', 'prompt', 'alt_text'],
         'outreach_email' => ['subject', 'body'],
         'classify_intent' => ['results'],
+        'seed_topics' => ['seeds'],
+        'relevance_check' => ['results'],
     ];
 
-    public function __construct(private readonly AiContentProvider $provider) {}
+    public function __construct(private readonly AiProviderFactory $providers) {}
 
-    public function providerName(): string
+    /** True when the workspace uses a real model rather than the offline demo. */
+    public function isReal(Website $website): bool
     {
-        return $this->provider->name();
+        return $this->providers->isReal($website->workspace_id);
     }
 
     /** @return array{data: array, model: string, provider: string, prompt_version: string} */
@@ -51,17 +54,18 @@ TXT;
         $required = self::SCHEMAS[$task] ?? throw new RuntimeException("Unknown AI task {$task}.");
         $context = $this->context($website, $taskContext);
         $schema = ['type' => 'object', 'required' => $required];
+        $provider = $this->providers->forWorkspace($website->workspace_id);
 
         for ($attempt = 1; $attempt <= 2; $attempt++) {
-            $result = $this->provider->generate($task, $context, $schema);
-            ActivityLogger::usage($website, $this->provider->name(), "ai.{$task}",
+            $result = $provider->generate($task, $context, $schema);
+            ActivityLogger::usage($website, $provider->name(), "ai.{$task}",
                 $result['input_tokens'] + $result['output_tokens']);
 
             if ($this->valid($result['data'], $required)) {
                 return [
                     'data' => $result['data'],
                     'model' => $result['model'],
-                    'provider' => $this->provider->name(),
+                    'provider' => $provider->name(),
                     'prompt_version' => config('seo.ai.prompt_version'),
                 ];
             }

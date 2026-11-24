@@ -52,9 +52,11 @@ class TeamController extends Controller
             'email' => ['required', 'email:rfc', 'max:255'],
             'role' => ['required', Rule::in(WorkspacePolicy::ROLES)],
         ]);
-        $this->team->invite($workspace, $request->user(), $data['email'], $data['role']);
+        [, $token] = $this->team->invite($workspace, $request->user(), $data['email'], $data['role']);
 
-        return back()->with('success', "Invitation sent to {$data['email']}.");
+        return back()
+            ->with('success', "Invitation created for {$data['email']}. Copy the link below and send it to them yourself.")
+            ->with('flash_data', ['invite_link' => route('invitations.show', $token)]);
     }
 
     public function revoke(Request $request, WorkspaceInvitation $invitation): RedirectResponse

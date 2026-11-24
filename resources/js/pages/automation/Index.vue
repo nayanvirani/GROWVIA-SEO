@@ -10,7 +10,7 @@ import { Pause, Play, PlayCircle } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 defineProps<{
-    automations: { key: string; label: string; schedule: string; paused: boolean; last_run: string | null }[];
+    automations: { key: string; label: string; schedule: string; help: string; paused: boolean; last_run: string | null }[];
     runs: any[];
     usage: { provider: string; operation: string; requests: number; units: number; cost: number }[];
 }>();
@@ -22,7 +22,10 @@ const open = ref<string | null>(null);
 </script>
 
 <template>
-    <SeoLayout title="Automation center" description="Scheduled jobs run via the Laravel scheduler and queue workers. Every run is logged here.">
+    <SeoLayout
+        title="Automation center"
+        description="Everything the app does on its own. Runs need composer dev (or the background services) to be running."
+    >
         <Panel title="Scheduled automations">
             <table class="w-full text-sm">
                 <thead class="text-left text-xs text-muted-foreground">
@@ -36,7 +39,10 @@ const open = ref<string | null>(null);
                 </thead>
                 <tbody>
                     <tr v-for="a in automations" :key="a.key" class="border-t">
-                        <td class="py-1.5 pr-4 font-medium">{{ a.label }}</td>
+                        <td class="py-1.5 pr-4">
+                            <span class="font-medium">{{ a.label }}</span
+                            ><br /><span class="text-xs text-muted-foreground">{{ a.help }}</span>
+                        </td>
                         <td class="pr-4 text-muted-foreground">{{ a.schedule }}</td>
                         <td class="pr-4">{{ datetime(a.last_run) }}</td>
                         <td class="pr-4"><Badge :value="a.paused ? 'partial' : 'connected'" />{{ a.paused ? ' paused' : '' }}</td>

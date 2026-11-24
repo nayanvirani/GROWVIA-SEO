@@ -3,14 +3,13 @@ import Badge from '@/components/seo/Badge.vue';
 import OwnershipNotice from '@/components/seo/OwnershipNotice.vue';
 import Panel from '@/components/seo/Panel.vue';
 import Stat from '@/components/seo/Stat.vue';
-import TrendChart from '@/components/seo/TrendChart.vue';
 import { Button } from '@/components/ui/button';
 import SeoLayout from '@/layouts/SeoLayout.vue';
 import { datetime, label, number, path } from '@/lib/format';
 import type { SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { ArrowRight, Play } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { ArrowRight, Loader2, Rocket } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 
 const props = defineProps<{
     overview: {
@@ -22,66 +21,132 @@ const props = defineProps<{
         pending_drafts: number;
         approved_drafts: number;
         keywords: number;
+        top_keywords: { id: string; keyword: string; opportunity_score: number; intent: string; is_gap: boolean }[];
         prospects: number;
-        traffic_trend: { date: string; clicks: number; impressions: number }[];
-        recent_activity: { id: string; action: string; created_at: string; user: { name: string } | null; metadata_json: any }[];
-        next_actions: { text: string; route: string }[];
+        existing_backlinks: number;
+        autopilot: {
+            enabled: boolean;
+            ai_real: boolean;
+            running: boolean;
+            last_runs: { id: string; automation_key: string; status: string; started_at: string; error_message: string | null }[];
+        };
+        recent_activity: { id: string; action: string; created_at: string; user: { name: string } | null }[];
+        todo: { text: string; why: string; route: string; priority: string }[];
     };
 }>();
 
 const page = usePage<SharedData>();
 const website = computed(() => page.props.currentWebsite!);
 const crawl = computed(() => props.overview.latest_crawl);
-const running = computed(() => crawl.value && ['queued', 'running'].includes(crawl.value.status));
+const canWork = computed(() => ['owner', 'admin', 'editor'].includes(page.props.workspace?.role ?? ''));
 
-const startCrawl = () => router.post(route('audit.crawl', website.value.id), {}, { preserveScroll: true });
+const runAutopilot = () => router.post(route('automation.run', [website.value.id, 'autopilot']), {}, { preserveScroll: true });
+const todoHref = (r: string) => (r === 'providers.index' ? route(r) : route(r, website.value.id));
+
+let timer: number | undefined;
+onMounted(() => (timer = window.setInterval(() => props.overview.autopilot.running && router.reload({ only: ['overview'] }), 6000)));
+onBeforeUnmount(() => clearInterval(timer));
 </script>
 
 <template>
-    <SeoLayout
-        title="SEO Overview"
-        :description="`What to look at next for ${website.normalized_host}. Findings are diagnostics from your own crawl — not ranking guarantees.`"
-    >
+    <SeoLayout title="SEO Overview" :description="`Your plain-English SEO assistant for ${website.normalized_host}.`">
         <template #actions>
-            <Button :disabled="running || !website.ownership_confirmed" @click="startCrawl"
-                ><Play /> {{ running ? 'Crawl running…' : 'Run crawl' }}</Button
-            >
+            <Button v-if="canWork" :disabled="overview.autopilot.running || !website.ownership_confirmed" @click="runAutopilot">
+                <Loader2 v-if="overview.autopilot.running" class="animate-spin" /><Rocket v-else />
+                {{ overview.autopilot.running ? 'Autopilot working…' : 'Run autopilot now' }}
+            </Button>
         </template>
 
         <OwnershipNotice />
 
-        <div v-if="overview.next_actions.length" class="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-            <h2 class="text-sm font-semibold text-blue-900 dark:text-blue-100">Recommended next steps</h2>
-            <ul class="mt-2 space-y-1">
-                <li v-for="a in overview.next_actions" :key="a.text" class="flex items-center gap-2 text-sm text-blue-900 dark:text-blue-100">
-                    <ArrowRight class="h-4 w-4 shrink-0" />
-                    <Link :href="route(a.route, website.id)" class="hover:underline">{{ a.text }}</Link>
+        <Panel title="Your to-do list" description="Do these in order. Each item explains why it matters.">
+            <ol v-if="overview.todo.length" class="space-y-3">
+                <li v-for="(t, i) in overview.todo" :key="t.text" class="flex gap-3">
+                    <span
+                        :class="[
+                            'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                            t.priority === 'high'
+                                ? 'bg-red-100 text-red-800'
+                                : t.priority === 'medium'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-slate-100 text-slate-700',
+                        ]"
+                        >{{ i + 1 }}</span
+                    >
+                    <div class="min-w-0 flex-1">
+                        <Link :href="todoHref(t.route)" class="inline-flex items-center gap-1 text-sm font-medium hover:underline"
+                            >{{ t.text }} <ArrowRight class="h-3.5 w-3.5"
+                        /></Link>
+                        <p class="text-xs text-muted-foreground">{{ t.why }}</p>
+                    </div>
                 </li>
-            </ul>
-        </div>
+            </ol>
+            <p v-else class="text-sm text-muted-foreground">Nothing urgent. Autopilot keeps checking every week.</p>
+        </Panel>
 
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Stat
-                label="Pages discovered"
-                :value="number(overview.pages_discovered)"
-                :hint="`${number(overview.pages_ok)} returned 2xx. Discovered ≠ indexed.`"
-            />
-            <Stat
-                label="High-severity issues"
+                label="Important problems"
                 :value="overview.issues_by_severity.high"
                 tone="text-red-600 dark:text-red-400"
-                :hint="`${overview.issues_by_severity.medium} medium · ${overview.issues_by_severity.low} low · ${overview.issues_by_severity.info} info`"
+                :hint="`${overview.issues_by_severity.medium} medium · ${overview.issues_by_severity.low} minor`"
             />
-            <Stat label="Drafts awaiting review" :value="overview.pending_drafts" :hint="`${overview.approved_drafts} approved for export`" />
+            <Stat label="Pages checked" :value="number(overview.pages_discovered)" :hint="`${number(overview.pages_ok)} load correctly`" />
+            <Stat label="Keyword ideas" :value="number(overview.keywords)" hint="Searches people make in your topic" />
             <Stat
-                label="Keywords / prospects"
-                :value="`${number(overview.keywords)} / ${number(overview.prospects)}`"
-                hint="Tracked keywords and backlink prospects"
+                label="Link opportunities"
+                :value="number(overview.prospects)"
+                :hint="`${overview.existing_backlinks} site(s) already link to you`"
             />
         </div>
 
         <div class="grid gap-4 lg:grid-cols-3">
-            <Panel title="Priority issues" description="Fix high-severity items first." class="lg:col-span-2">
+            <Panel
+                title="Best keyword opportunities"
+                description="What to write about next. Score = our estimate, not search volume."
+                class="lg:col-span-2"
+            >
+                <template #actions
+                    ><Link :href="route('keywords.index', website.id)" class="text-sm text-primary hover:underline">All keywords</Link></template
+                >
+                <ul v-if="overview.top_keywords.length" class="divide-y">
+                    <li v-for="k in overview.top_keywords" :key="k.id" class="flex items-center justify-between gap-2 py-2 text-sm">
+                        <span>{{ k.keyword }} <span v-if="k.is_gap" class="ml-1 text-xs text-amber-700">no page yet</span></span>
+                        <span class="flex items-center gap-2"
+                            ><Badge :value="k.intent" /><span class="w-8 text-right font-semibold tabular-nums">{{ k.opportunity_score }}</span></span
+                        >
+                    </li>
+                </ul>
+                <p v-else class="text-sm text-muted-foreground">Run autopilot to discover keyword ideas.</p>
+            </Panel>
+
+            <Panel title="Autopilot">
+                <p class="text-sm">
+                    <Badge :value="overview.autopilot.enabled ? 'connected' : 'partial'" />
+                    {{ overview.autopilot.enabled ? 'On — runs every Monday' : 'Off' }}
+                </p>
+                <p class="mt-2 text-sm">
+                    AI writer: <Badge :value="overview.autopilot.ai_real ? 'connected' : 'partial'" />
+                    <Link v-if="!overview.autopilot.ai_real" :href="route('providers.index')" class="ml-1 text-xs text-primary hover:underline"
+                        >connect a free one</Link
+                    >
+                </p>
+                <ul class="mt-3 space-y-1 text-xs">
+                    <li v-for="r in overview.autopilot.last_runs" :key="r.id" class="flex justify-between gap-2" :title="r.error_message ?? ''">
+                        <span>{{ label(r.automation_key) }}</span>
+                        <span class="flex items-center gap-1"
+                            ><Badge :value="r.status" /><span class="text-muted-foreground">{{ datetime(r.started_at) }}</span></span
+                        >
+                    </li>
+                </ul>
+                <p v-if="crawl" class="mt-3 text-xs text-muted-foreground">
+                    Last crawl: {{ crawl.status }} · {{ crawl.pages_crawled }} pages · {{ datetime(crawl.completed_at ?? crawl.created_at) }}
+                </p>
+            </Panel>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-3">
+            <Panel title="Problems to fix first" class="lg:col-span-2">
                 <template #actions
                     ><Link :href="route('audit.index', website.id)" class="text-sm text-primary hover:underline">View all</Link></template
                 >
@@ -98,53 +163,12 @@ const startCrawl = () => router.post(route('audit.crawl', website.value.id), {},
                         <Badge :value="i.severity" />
                     </li>
                 </ul>
-                <p v-else class="text-sm text-muted-foreground">No open issues. Run a crawl to check the site.</p>
-            </Panel>
-
-            <Panel title="Latest crawl">
-                <dl v-if="crawl" class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <dt class="text-muted-foreground">Status</dt>
-                        <dd><Badge :value="crawl.status" /></dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-muted-foreground">Pages crawled</dt>
-                        <dd>{{ crawl.pages_crawled }} / found {{ crawl.pages_found }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-muted-foreground">Open issues</dt>
-                        <dd>{{ crawl.issues_found }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-muted-foreground">Started</dt>
-                        <dd>{{ datetime(crawl.started_at ?? crawl.created_at) }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-muted-foreground">Finished</dt>
-                        <dd>{{ datetime(crawl.completed_at) }}</dd>
-                    </div>
-                </dl>
-                <p v-else class="text-sm text-muted-foreground">
-                    No crawl yet.
-                    <span v-if="!website.ownership_confirmed"
-                        >Confirm ownership in
-                        <Link :href="route('websites.settings', website.id)" class="text-primary hover:underline">settings</Link> first.</span
-                    >
-                </p>
-            </Panel>
-        </div>
-
-        <div class="grid gap-4 lg:grid-cols-3">
-            <Panel title="Search traffic (last 30 days)" description="From Search Console, or mock data until it is connected." class="lg:col-span-2">
-                <TrendChart :points="overview.traffic_trend" />
+                <p v-else class="text-sm text-muted-foreground">No open problems found.</p>
             </Panel>
             <Panel title="Recent activity">
                 <ul class="space-y-2 text-sm">
                     <li v-for="a in overview.recent_activity" :key="a.id" class="flex justify-between gap-2">
-                        <span
-                            >{{ label(a.action.replace('.', ' '))
-                            }}<span v-if="a.user" class="text-muted-foreground"> · {{ a.user.name }}</span></span
-                        >
+                        <span>{{ label(a.action.replace('.', ' ')) }}</span>
                         <span class="shrink-0 text-xs text-muted-foreground">{{ datetime(a.created_at) }}</span>
                     </li>
                     <li v-if="!overview.recent_activity.length" class="text-muted-foreground">Nothing yet.</li>

@@ -25,6 +25,7 @@ class Website extends Model
         'crawl_max_pages' => 300,
         'crawl_max_depth' => 5,
         'crawl_frequency' => 'weekly',
+        'autopilot' => true,
         'exclusion_paths' => [],
         'brand_voice' => 'Clear, helpful and practical. No hype.',
         'description' => '',
@@ -110,11 +111,6 @@ class Website extends Model
     public function backlinks(): HasMany
     {
         return $this->hasMany(Backlink::class);
-    }
-
-    public function analytics(): HasMany
-    {
-        return $this->hasMany(AnalyticsDaily::class);
     }
 
     public function automationRuns(): HasMany

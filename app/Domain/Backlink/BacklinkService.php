@@ -5,10 +5,8 @@ namespace App\Domain\Backlink;
 use App\Domain\AI\AiService;
 use App\Domain\Content\ContentService;
 use App\Models\BacklinkProspect;
-use App\Models\Competitor;
 use App\Models\OutreachDraft;
 use App\Models\Website;
-use App\Providers\SEOData\BacklinkDataProvider;
 use App\Support\ActivityLogger;
 use App\Support\Security\HostGuard;
 use App\Support\Url;
@@ -22,7 +20,6 @@ class BacklinkService
 
     public function __construct(
         private readonly ProspectScorer $scorer,
-        private readonly BacklinkDataProvider $provider,
         private readonly AiService $ai,
     ) {}
 
@@ -42,28 +39,6 @@ class BacklinkService
         }
         fclose($h);
         ActivityLogger::log($website, 'backlinks.csv_imported', null, compact('imported', 'skipped'));
-
-        return [$imported, $skipped];
-    }
-
-    /** Import competitor backlinks from the configured provider and turn them into prospects. */
-    public function importFromProvider(Website $website, Competitor $competitor): array
-    {
-        $rows = $this->provider->backlinks($competitor->domain);
-        ActivityLogger::usage($website, $this->provider->name(), 'backlinks.competitor', count($rows));
-        $imported = $skipped = 0;
-        foreach ($rows as $r) {
-            $website->backlinks()->updateOrCreate(
-                ['source_url' => $r['source_url'], 'target_url' => $r['target_url'], 'competitor_id' => $competitor->id],
-                ['source_domain' => Url::host($r['source_url']), 'anchor_text' => $r['anchor_text'], 'rel_attributes' => $r['rel'],
-                    'first_seen_at' => $r['first_seen'], 'last_seen_at' => now(), 'status' => 'active', 'provider' => $this->provider->name()]
-            );
-            $prospect = $this->upsertProspect($website, $r + ['target_url' => $website->base_url], $this->provider->name(), 'competitor_link', [
-                'competitor' => $competitor->domain, 'competitor_target' => $r['target_url'], 'observed' => now()->toDateString(),
-            ]);
-            $prospect ? $imported++ : $skipped++;
-        }
-        ActivityLogger::log($website, 'backlinks.provider_imported', $competitor, compact('imported', 'skipped'));
 
         return [$imported, $skipped];
     }

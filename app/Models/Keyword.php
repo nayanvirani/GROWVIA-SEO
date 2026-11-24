@@ -18,6 +18,9 @@ class Keyword extends Model
 
     protected $casts = [
         'metric_date' => 'date',
+        'opportunity_json' => 'array',
+        'sources_json' => 'array',
+        'is_gap' => 'boolean',
         'is_estimate' => 'boolean',
         'cpc' => 'decimal:2',
     ];

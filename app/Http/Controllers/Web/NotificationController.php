@@ -35,21 +35,4 @@ class NotificationController extends Controller
 
         return back();
     }
-
-    public function editPreferences(Request $request): Response
-    {
-        return Inertia::render('settings/Notifications', [
-            'preferences' => $request->user()->only(['email_digest', 'email_reminders']),
-        ]);
-    }
-
-    public function updatePreferences(Request $request): RedirectResponse
-    {
-        $request->user()->update($request->validate([
-            'email_digest' => ['required', 'boolean'],
-            'email_reminders' => ['required', 'boolean'],
-        ]));
-
-        return back()->with('success', 'Notification preferences saved.');
-    }
 }

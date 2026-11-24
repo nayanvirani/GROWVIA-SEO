@@ -19,6 +19,7 @@ class UpdateWebsiteRequest extends FormRequest
             'language' => ['sometimes', 'string', 'max:10'],
             'target_country' => ['nullable', 'string', 'size:2'],
             'crawl_enabled' => ['sometimes', 'boolean'],
+            'autopilot' => ['sometimes', 'boolean'],
             'ownership_confirmed' => ['sometimes', 'boolean'],
             'crawl_max_pages' => ['sometimes', 'integer', 'min:1', 'max:'.config('seo.crawler.max_pages_limit')],
             'crawl_max_depth' => ['sometimes', 'integer', 'min:0', 'max:10'],

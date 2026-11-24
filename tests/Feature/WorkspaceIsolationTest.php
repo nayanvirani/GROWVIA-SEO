@@ -25,7 +25,7 @@ class WorkspaceIsolationTest extends TestCase
         $this->assertSame($aliceSite->workspace_id, $page->workspace_id, 'workspace_id is derived from the website');
 
         $this->actingAs($bob);
-        foreach (['websites.show', 'audit.index', 'audit.pages', 'keywords.index', 'content.index', 'backlinks.index', 'analytics.index', 'automation.index', 'websites.settings'] as $name) {
+        foreach (['websites.show', 'audit.index', 'audit.pages', 'keywords.index', 'content.index', 'backlinks.index', 'automation.index', 'websites.settings'] as $name) {
             $this->get(route($name, $aliceSite))->assertForbidden();
         }
         $this->get(route('audit.page', [$aliceSite, $page]))->assertForbidden();

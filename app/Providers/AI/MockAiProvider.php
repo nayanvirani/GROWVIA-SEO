@@ -26,6 +26,7 @@ class MockAiProvider implements AiContentProvider
             'image_brief' => $this->imageBrief($context),
             'outreach_email' => $this->outreach($context),
             'classify_intent' => $this->classify($context),
+            'seed_topics' => $this->seedTopics($context),
             default => [],
         };
 
@@ -153,20 +154,27 @@ class MockAiProvider implements AiContentProvider
 
     private function classify(array $c): array
     {
-        $out = [];
-        foreach ($c['keywords'] ?? [] as $k) {
-            $l = Str::lower($k);
-            $intent = match (true) {
-                Str::contains($l, ['buy', 'price', 'pricing', 'install', 'download', 'free trial', 'coupon']) => 'transactional',
-                Str::contains($l, ['best', ' vs ', 'review', 'alternative', 'compare', 'top ']) => 'commercial',
-                Str::contains($l, ['login', 'sign in', 'dashboard']) => 'navigational',
-                Str::contains($l, ['how', 'what', 'why', 'guide', 'tips', 'ideas', 'examples']) => 'informational',
-                Str::contains($l, ['app', 'plugin', 'tool', 'software']) => 'commercial',
-                default => 'informational',
-            };
-            $out[] = ['keyword' => $k, 'intent' => $intent];
-        }
+        return ['results' => array_map(fn ($k) => ['keyword' => $k, 'intent' => self::heuristicIntent($k)], $c['keywords'] ?? [])];
+    }
 
-        return ['results' => $out];
+    /** Rule-based intent used offline and as a fallback when an AI answer is missing. */
+    public static function heuristicIntent(string $keyword): string
+    {
+        $l = ' '.Str::lower($keyword).' ';
+
+        return match (true) {
+            Str::contains($l, [' buy ', ' price', ' pricing', ' install', ' download', ' free trial', ' coupon', ' discount', ' sign up', ' cost']) => 'transactional',
+            Str::contains($l, [' best ', ' vs ', ' review', ' alternative', ' compare', ' top ', ' comparison']) => 'commercial',
+            Str::contains($l, [' login', ' sign in', ' dashboard', ' support ', ' contact ']) => 'navigational',
+            Str::contains($l, [' how ', ' what ', ' why ', ' when ', ' guide', ' tips', ' ideas', ' examples', ' tutorial', ' meaning',
+                ' is ', ' are ', ' does ', ' do ', ' can ', ' should ', ' ways ', ' strategy', ' strategies', ' definition', ' explained']) => 'informational',
+            // A short product/category phrase ("shopify checkout upsell") is someone looking for a solution.
+            default => 'commercial',
+        };
+    }
+
+    private function seedTopics(array $c): array
+    {
+        return ['seeds' => []]; // offline: seeds come from the site's own pages
     }
 }

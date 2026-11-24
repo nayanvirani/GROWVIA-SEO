@@ -27,6 +27,7 @@ const form = useForm({
     language: props.website.language,
     target_country: props.website.target_country,
     crawl_enabled: props.website.crawl_enabled,
+    autopilot: props.settings.autopilot,
     ownership_confirmed: props.website.ownership_confirmed,
     crawl_max_pages: props.settings.crawl_max_pages,
     crawl_max_depth: props.settings.crawl_max_depth,
@@ -71,6 +72,13 @@ const destroy = () => router.delete(route('websites.destroy', props.website.id))
             <Panel title="Crawl policy" description="Safe defaults from the guide: 300 pages, depth 5, 1 request/second.">
                 <div class="grid gap-3">
                     <label class="flex items-center gap-2 text-sm"><input v-model="form.crawl_enabled" type="checkbox" /> Crawling enabled</label>
+                    <label class="flex items-start gap-2 text-sm"
+                        ><input v-model="form.autopilot" type="checkbox" class="mt-0.5" />
+                        <span
+                            ><strong>Autopilot</strong> — every week, crawl the site, research keywords, plan articles and find link opportunities
+                            automatically.</span
+                        ></label
+                    >
                     <div class="grid grid-cols-3 gap-2">
                         <div class="grid gap-1.5">
                             <Label>Max pages</Label><Input v-model="form.crawl_max_pages" type="number" min="1" /><InputError

@@ -5,9 +5,7 @@ namespace App\Domain\Workspace;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceInvitation;
-use App\Notifications\WorkspaceInvitationSent;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -15,7 +13,13 @@ class TeamService
 {
     public const INVITE_DAYS = 7;
 
-    public function invite(Workspace $workspace, User $inviter, string $email, string $role): WorkspaceInvitation
+    /**
+     * Create an invitation and return [invitation, plain token]. No email is sent:
+     * the inviter copies the link and shares it however they like.
+     *
+     * @return array{0: WorkspaceInvitation, 1: string}
+     */
+    public function invite(Workspace $workspace, User $inviter, string $email, string $role): array
     {
         $email = Str::lower(trim($email));
         if ($role === 'owner' && $inviter->workspaceRole($workspace->id) !== 'owner') {
@@ -36,9 +40,8 @@ class TeamService
             'invited_by' => $inviter->id,
             'expires_at' => now()->addDays(self::INVITE_DAYS),
         ]);
-        Notification::route('mail', $email)->notify(new WorkspaceInvitationSent($invitation, $token));
 
-        return $invitation;
+        return [$invitation, $token];
     }
 
     public function findByToken(string $token): ?WorkspaceInvitation

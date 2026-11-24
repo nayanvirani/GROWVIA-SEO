@@ -4,7 +4,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Activity, BarChart3, FileText, Gauge, Image, KeyRound, Link2, Plug, Plus, Search, Settings2, Workflow } from 'lucide-vue-next';
+import { Activity, FileText, Gauge, Image, KeyRound, Link2, Plug, Plus, Search, Settings2, Workflow } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -22,14 +22,13 @@ const siteNav = computed(() => {
         { title: 'Content Studio', url: route('content.index', w.id), icon: Activity },
         { title: 'Image Studio', url: route('images.index', w.id), icon: Image },
         { title: 'Backlinks', url: route('backlinks.index', w.id), icon: Link2 },
-        { title: 'Analytics', url: route('analytics.index', w.id), icon: BarChart3 },
         { title: 'Automation', url: route('automation.index', w.id), icon: Workflow },
         { title: 'Website Settings', url: route('websites.settings', w.id), icon: Settings2 },
     ];
 });
 const workspaceNav = [
     { title: 'Team', url: route('team.index'), icon: Users },
-    { title: 'Integrations', url: route('integrations.index'), icon: Plug },
+    { title: 'AI & data providers', url: route('providers.index'), icon: Plug },
 ];
 const canManage = computed(() => ['owner', 'admin'].includes(page.props.workspace?.role ?? ''));
 function switchWorkspace(e: Event) {

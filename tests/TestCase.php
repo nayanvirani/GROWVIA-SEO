@@ -12,7 +12,7 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
         Http::preventStrayRequests();
-        config(['seo.crawler.token' => 'test-token', 'seo.crawler.base_url' => 'http://crawler.test', 'seo.ai.provider' => 'mock']);
+        config(['seo.crawler.token' => 'test-token', 'seo.crawler.base_url' => 'http://crawler.test', 'seo.ai.provider' => 'mock', 'seo.seo_data.provider' => 'mock']);
     }
 
     protected function userWithWebsite(array $attributes = []): array

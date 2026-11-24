@@ -33,7 +33,7 @@ class KeywordController extends Controller
             ->when($filters['q'] ?? null, fn ($q, $s) => $q->where('keyword', 'like', "%{$s}%"))
             ->when($filters['intent'] ?? null, fn ($q, $i) => $q->where('intent', $i))
             ->when($filters['cluster'] ?? null, fn ($q, $c) => $q->whereHas('clusters', fn ($w) => $w->whereKey($c)))
-            ->orderByDesc('volume')->paginate(100)->withQueryString();
+            ->orderByRaw('opportunity_score IS NULL')->orderByDesc('opportunity_score')->orderByDesc('volume')->paginate(100)->withQueryString();
 
         return Inertia::render('keywords/Index', [
             'keywords' => $keywords,
@@ -42,6 +42,7 @@ class KeywordController extends Controller
             'pages' => $website->pages()->where('status_code', 200)->orderBy('canonical_url')->limit(500)->get(['id', 'canonical_url', 'title']),
             'seeds' => $website->keywordSeeds()->latest()->limit(20)->pluck('seed_text')->unique()->values(),
             'defaults' => ['locale' => $website->target_country ?: 'us', 'language' => $website->language],
+            'lastRun' => $website->automationRuns()->where('automation_key', 'keyword_research')->latest('started_at')->first(),
         ]);
     }
 
@@ -126,9 +127,9 @@ class KeywordController extends Controller
 
     public function export(Website $website, ContentService $content)
     {
-        $rows = [['keyword', 'intent', 'priority', 'volume', 'difficulty', 'cpc', 'provider', 'is_estimate', 'locale', 'language', 'metric_date', 'clusters', 'target_page']];
+        $rows = [['keyword', 'opportunity_score', 'intent', 'priority', 'volume', 'difficulty', 'cpc', 'provider', 'is_estimate', 'locale', 'language', 'metric_date', 'clusters', 'target_page']];
         foreach ($website->keywords()->with(['clusters:id,name', 'pageTargets.page:id,canonical_url'])->orderByDesc('volume')->get() as $k) {
-            $rows[] = [$k->keyword, $k->intent, $k->priority, $k->volume, $k->difficulty, $k->cpc, $k->provider, $k->is_estimate ? 'yes' : 'no',
+            $rows[] = [$k->keyword, $k->opportunity_score, $k->intent, $k->priority, $k->volume, $k->difficulty, $k->cpc, $k->provider, $k->is_estimate ? 'yes' : 'no',
                 $k->locale, $k->language, $k->metric_date?->toDateString(), $k->clusters->pluck('name')->implode('|'), $k->pageTargets->first()?->page?->canonical_url];
         }
 

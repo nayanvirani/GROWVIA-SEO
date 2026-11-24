@@ -19,14 +19,9 @@ $forEachWebsite = function (string $key, ?callable $filter = null) {
     };
 };
 
-Schedule::call($forEachWebsite('website_crawl', fn (Website $w) => $w->crawl_enabled && $w->ownership_confirmed
-    && $w->setting('crawl_frequency') === 'weekly'))->weeklyOn(1, '02:00')->name('website-crawl-weekly')->withoutOverlapping();
-Schedule::call($forEachWebsite('website_crawl', fn (Website $w) => $w->crawl_enabled && $w->ownership_confirmed
-    && $w->setting('crawl_frequency') === 'monthly'))->monthlyOn(1, '02:00')->name('website-crawl-monthly')->withoutOverlapping();
+Schedule::call($forEachWebsite('autopilot', fn (Website $w) => $w->setting('autopilot')
+    && $w->setting('crawl_frequency') !== 'manual'))->weeklyOn(1, '02:00')->name('autopilot-weekly')->withoutOverlapping();
 Schedule::call($forEachWebsite('critical_issue_recheck'))->dailyAt('03:00')->name('critical-issue-recheck')->withoutOverlapping();
-Schedule::call($forEachWebsite('keyword_refresh'))->monthlyOn(1, '04:00')->name('keyword-refresh')->withoutOverlapping();
-Schedule::call($forEachWebsite('backlink_recheck'))->monthlyOn(1, '05:00')->name('backlink-recheck')->withoutOverlapping();
-Schedule::call($forEachWebsite('search_console_sync'))->dailyAt('06:00')->name('search-console-sync')->withoutOverlapping();
 Schedule::call($forEachWebsite('weekly_digest'))->weeklyOn(1, '08:00')->name('weekly-digest')->withoutOverlapping();
 Schedule::call($forEachWebsite('stale_draft_reminder'))->weeklyOn(1, '08:30')->name('stale-draft-reminder')->withoutOverlapping();
 

@@ -34,6 +34,8 @@ class MockKeywordProvider implements KeywordResearchProvider
                 'difficulty' => $h % 90 + 5,
                 'cpc' => round((($h >> 8) % 600) / 100, 2),
                 'is_estimate' => true,
+                'rank' => count($rows) + 1,
+                'sources' => ['mock'],
             ];
         }
 

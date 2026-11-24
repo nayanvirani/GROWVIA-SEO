@@ -25,14 +25,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('notifications', [Web\NotificationController::class, 'index'])->name('notifications.index');
     Route::get('notifications/{id}', [Web\NotificationController::class, 'open'])->name('notifications.open');
     Route::post('notifications/read-all', [Web\NotificationController::class, 'readAll'])->name('notifications.read-all');
-    Route::get('settings/notifications', [Web\NotificationController::class, 'editPreferences'])->name('notifications.preferences');
-    Route::patch('settings/notifications', [Web\NotificationController::class, 'updatePreferences'])->name('notifications.preferences.update');
 
-    Route::get('integrations', [Web\IntegrationController::class, 'index'])->name('integrations.index');
-    Route::get('integrations/search-console/redirect', [Web\IntegrationController::class, 'searchConsoleRedirect'])->name('integrations.search-console.redirect');
-    Route::get('integrations/search-console/callback', [Web\IntegrationController::class, 'searchConsoleCallback'])->name('integrations.search-console.callback');
-    Route::patch('integrations/search-console', [Web\IntegrationController::class, 'searchConsoleProperty'])->name('integrations.search-console.property');
-    Route::delete('integrations/search-console', [Web\IntegrationController::class, 'searchConsoleDisconnect'])->name('integrations.search-console.disconnect');
+    Route::get('providers', [Web\ProviderController::class, 'index'])->name('providers.index');
+    Route::post('providers/ai/models', [Web\ProviderController::class, 'models'])->name('providers.models');
+    Route::patch('providers/{kind}', [Web\ProviderController::class, 'update'])->name('providers.update');
+    Route::post('providers/{kind}/test', [Web\ProviderController::class, 'test'])->middleware('throttle:ai')->name('providers.test');
 
     Route::prefix('websites/{website}')->middleware('can:view,website')->scopeBindings()->group(function () {
         Route::get('/', [Web\WebsiteController::class, 'show'])->name('websites.show');
@@ -76,15 +73,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('backlinks', [Web\BacklinkController::class, 'index'])->name('backlinks.index');
         Route::post('competitors', [Web\BacklinkController::class, 'storeCompetitor'])->name('backlinks.competitors.store');
         Route::delete('competitors/{competitor}', [Web\BacklinkController::class, 'destroyCompetitor'])->name('backlinks.competitors.destroy');
-        Route::post('competitors/{competitor}/import', [Web\BacklinkController::class, 'importProvider'])->name('backlinks.competitors.import');
+        Route::patch('competitors/{competitor}', [Web\BacklinkController::class, 'toggleCompetitor'])->name('backlinks.competitors.toggle');
+        Route::post('backlinks/discover', [Web\BacklinkController::class, 'discover'])->name('backlinks.discover');
         Route::post('backlinks/import', [Web\BacklinkController::class, 'importCsv'])->name('backlinks.import');
         Route::get('backlinks/export', [Web\BacklinkController::class, 'export'])->name('backlinks.export');
         Route::patch('prospects/{prospect}', [Web\BacklinkController::class, 'updateProspect'])->name('backlinks.prospects.update');
         Route::post('prospects/{prospect}/outreach', [Web\BacklinkController::class, 'outreach'])->middleware('throttle:ai')->name('backlinks.outreach.store');
         Route::patch('outreach/{outreach}', [Web\BacklinkController::class, 'updateOutreach'])->name('backlinks.outreach.update');
-
-        Route::get('analytics', [Web\AnalyticsController::class, 'index'])->name('analytics.index');
-        Route::post('analytics/sync', [Web\AnalyticsController::class, 'sync'])->name('analytics.sync');
 
         Route::get('automation', [Web\AutomationController::class, 'index'])->name('automation.index');
         Route::post('automation/{key}/run', [Web\AutomationController::class, 'run'])->name('automation.run');

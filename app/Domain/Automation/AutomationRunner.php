@@ -11,13 +11,20 @@ use Throwable;
 class AutomationRunner
 {
     public const AUTOMATIONS = [
-        'website_crawl' => ['label' => 'Website crawl', 'schedule' => 'Weekly (Mon 02:00)'],
-        'critical_issue_recheck' => ['label' => 'Critical issue recheck', 'schedule' => 'Daily 03:00'],
-        'keyword_refresh' => ['label' => 'Keyword refresh', 'schedule' => 'Monthly (1st, 04:00)'],
-        'backlink_recheck' => ['label' => 'Backlink recheck', 'schedule' => 'Monthly (1st, 05:00)'],
-        'search_console_sync' => ['label' => 'Search Console sync', 'schedule' => 'Daily 06:00'],
-        'weekly_digest' => ['label' => 'Weekly SEO digest', 'schedule' => 'Weekly (Mon 08:00)'],
-        'stale_draft_reminder' => ['label' => 'Stale draft reminder', 'schedule' => 'Weekly (Mon 08:30)'],
+        'autopilot' => ['label' => 'Autopilot (everything below, in order)', 'schedule' => 'Weekly (Mon 02:00)',
+            'help' => 'Crawls the site, then researches keywords, plans content and finds link opportunities.'],
+        'website_crawl' => ['label' => 'Website crawl & audit', 'schedule' => 'Part of autopilot',
+            'help' => 'Reads every page and checks for technical problems.'],
+        'keyword_research' => ['label' => 'Keyword research & content plan', 'schedule' => 'After each crawl (max weekly)',
+            'help' => 'Finds what people search for, scores each idea and creates content briefs for gaps.'],
+        'backlink_discovery' => ['label' => 'Backlink opportunities', 'schedule' => 'After keyword research (max weekly)',
+            'help' => 'Finds pages that list tools like yours and drafts outreach messages for you to send.'],
+        'critical_issue_recheck' => ['label' => 'Broken page recheck', 'schedule' => 'Daily 03:00',
+            'help' => 'Re-checks broken pages and links between full crawls.'],
+        'weekly_digest' => ['label' => 'Weekly summary', 'schedule' => 'Weekly (Mon 08:00)',
+            'help' => 'An in-app summary of what changed.'],
+        'stale_draft_reminder' => ['label' => 'Draft reminder', 'schedule' => 'Weekly (Mon 08:30)',
+            'help' => 'Reminds you about drafts waiting more than 14 days.'],
     ];
 
     public function run(Website $website, string $key, callable $task, string $trigger = 'schedule'): AutomationRun

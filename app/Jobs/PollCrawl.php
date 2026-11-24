@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Domain\Audit\AuditEngine;
+use App\Domain\Automation\Automations;
 use App\Domain\Crawl\CrawlerClient;
 use App\Domain\Crawl\PageIngestor;
 use App\Models\CrawlRun;
@@ -74,6 +75,10 @@ class PollCrawl implements ShouldQueue
         ]);
         ActivityLogger::log($run->website, 'crawl.finished', $run, ['status' => $run->status, 'pages' => $run->pages_crawled]);
         Notifier::website($run->website, new CrawlFinished($run));
+
+        if (in_array($run->status, ['completed', 'partial'], true)) {
+            app(Automations::class)->followUp($run->website);
+        }
     }
 
     public function failed(Throwable $e): void

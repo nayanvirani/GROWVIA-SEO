@@ -9,7 +9,8 @@ import SeoLayout from '@/layouts/SeoLayout.vue';
 import { date } from '@/lib/format';
 import type { SharedData } from '@/types';
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { Mail, Trash2 } from 'lucide-vue-next';
+import { Copy, Link2, Trash2 } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 const props = defineProps<{
     workspace: { id: string; name: string };
@@ -21,6 +22,8 @@ const props = defineProps<{
 }>();
 const page = usePage<SharedData>();
 const me = page.props.auth.user.id;
+const inviteLink = computed(() => page.props.flash?.data?.invite_link as string | undefined);
+const copy = (t: string) => navigator.clipboard?.writeText(t);
 
 const rename = useForm({ name: props.workspace.name });
 const invite = useForm({ email: '', role: 'editor' });
@@ -83,15 +86,26 @@ const roleHelp: Record<string, string> = {
             </Panel>
 
             <div class="grid content-start gap-4">
-                <Panel v-if="canManage" title="Invite someone" description="They get an email link valid for 7 days.">
+                <Panel
+                    v-if="canManage"
+                    title="Invite someone"
+                    description="Creates a private link valid for 7 days. No email is sent — you share the link yourself."
+                >
                     <form class="grid gap-2" @submit.prevent="sendInvite">
                         <Input v-model="invite.email" type="email" placeholder="name@company.com" required />
                         <InputError :message="invite.errors.email" />
                         <SelectField v-model="invite.role" :options="roles.filter((r) => r !== 'owner' || myRole === 'owner')" />
                         <InputError :message="invite.errors.role" />
                         <p class="text-xs text-muted-foreground">{{ roleHelp[invite.role] }}</p>
-                        <Button :disabled="invite.processing || !invite.email"><Mail /> Send invitation</Button>
+                        <Button :disabled="invite.processing || !invite.email"><Link2 /> Create invite link</Button>
                     </form>
+                    <div v-if="inviteLink" class="mt-3 grid gap-1 rounded-md border bg-muted/50 p-2 text-xs">
+                        <span class="font-medium">Invite link (shown once):</span>
+                        <div class="flex items-center gap-1">
+                            <code class="flex-1 break-all">{{ inviteLink }}</code>
+                            <Button size="icon" variant="ghost" @click="copy(inviteLink)"><Copy /></Button>
+                        </div>
+                    </div>
                 </Panel>
                 <Panel v-if="canManage" title="Workspace name">
                     <form class="flex gap-2" @submit.prevent="rename.patch(route('team.update'), { preserveScroll: true })">

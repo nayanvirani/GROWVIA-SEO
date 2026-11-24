@@ -5,10 +5,13 @@ namespace App\Domain\Overview;
 use App\Domain\Audit\AuditRules;
 use App\Models\ActivityLog;
 use App\Models\Website;
+use App\Providers\AI\AiProviderFactory;
 use App\Support\Enums\ContentStatus;
 
 class OverviewService
 {
+    public function __construct(private readonly AiProviderFactory $ai) {}
+
     public function build(Website $website): array
     {
         $latest = $website->crawlRuns()->latest()->first();
@@ -23,10 +26,6 @@ class OverviewService
                 'recommendation' => $i->recommendation,
             ]);
 
-        $trend = $website->analytics()->where('date', '>=', now()->subDays(31))
-            ->selectRaw('date, SUM(clicks) clicks, SUM(impressions) impressions')->groupBy('date')->orderBy('date')->get()
-            ->map(fn ($r) => ['date' => $r->date->toDateString(), 'clicks' => (int) $r->clicks, 'impressions' => (int) $r->impressions]);
-
         return [
             'latest_crawl' => $latest,
             'pages_discovered' => $website->pages()->count(),
@@ -39,32 +38,57 @@ class OverviewService
             'pending_drafts' => $website->contentDrafts()->whereIn('status', [ContentStatus::ContentDraft->value, ContentStatus::HumanEdit->value])->count(),
             'approved_drafts' => $website->contentDrafts()->where('status', ContentStatus::ApprovedForExport->value)->count(),
             'keywords' => $website->keywords()->count(),
+            'top_keywords' => $website->keywords()->whereNotNull('opportunity_score')->orderByDesc('opportunity_score')->limit(5)
+                ->get(['id', 'keyword', 'opportunity_score', 'intent', 'is_gap']),
             'prospects' => $website->backlinkProspects()->where('status', '!=', 'rejected')->count(),
-            'traffic_trend' => $trend,
+            'existing_backlinks' => $website->backlinks()->count(),
+            'autopilot' => [
+                'enabled' => (bool) $website->setting('autopilot'),
+                'ai_real' => $this->ai->isReal($website->workspace_id),
+                'last_runs' => $website->automationRuns()->whereIn('automation_key', ['autopilot', 'keyword_research', 'backlink_discovery'])
+                    ->latest('started_at')->limit(5)->get(['id', 'automation_key', 'status', 'started_at', 'error_message']),
+                'running' => $website->automationRuns()->where('status', 'running')->exists()
+                    || $website->crawlRuns()->whereIn('status', ['queued', 'running'])->exists()
+                    || $website->contentBriefs()->where('status', 'generating')->exists(),
+            ],
             'recent_activity' => ActivityLog::where('website_id', $website->id)->with('user:id,name')->latest()->limit(8)->get(),
-            'next_actions' => $this->nextActions($website, $latest),
+            'todo' => $this->todo($website, $latest),
         ];
     }
 
-    private function nextActions(Website $website, $latest): array
+    /** A plain-English to-do list for someone who is not an SEO specialist. */
+    private function todo(Website $w, $latest): array
     {
-        $actions = [];
-        if (! $website->ownership_confirmed) {
-            $actions[] = ['text' => 'Confirm you own or are authorised to analyse this website.', 'route' => 'websites.settings'];
+        $t = [];
+        $add = function (string $text, string $why, string $route, string $priority = 'medium') use (&$t) {
+            $t[] = compact('text', 'why', 'route', 'priority');
+        };
+
+        if (! $w->ownership_confirmed) {
+            $add('Confirm you own this website', 'The app only crawls websites you are allowed to analyse.', 'websites.settings', 'high');
+        }
+        if (! $this->ai->isReal($w->workspace_id)) {
+            $add('Connect a free AI provider', 'Without it, drafts are only templates. Gemini or Groq are free and take 2 minutes to set up.', 'providers.index', 'high');
         }
         if (! $latest) {
-            $actions[] = ['text' => 'Run your first crawl to discover pages and technical issues.', 'route' => 'audit.index'];
+            $add('Run autopilot for the first time', 'It reads your site, finds problems, researches keywords and finds link opportunities.', 'websites.show', 'high');
         }
-        if ($website->issues()->where('status', 'open')->where('severity', 'high')->exists()) {
-            $actions[] = ['text' => 'Review high-severity issues first — they can stop pages appearing in search.', 'route' => 'audit.index'];
+        if ($high = $w->issues()->where('status', 'open')->where('severity', 'high')->count()) {
+            $add("Fix {$high} important website problem(s)", 'These can stop pages from appearing in Google. Each one explains exactly what to change.', 'audit.index', 'high');
         }
-        if (! $website->keywords()->exists()) {
-            $actions[] = ['text' => 'Add seed keywords to research what your audience searches for.', 'route' => 'keywords.index'];
+        if ($drafts = $w->contentDrafts()->whereIn('status', [ContentStatus::ContentDraft->value, ContentStatus::HumanEdit->value])->count()) {
+            $add("Review {$drafts} article draft(s)", 'Read, correct any facts, then approve and copy it to your website.', 'content.index', 'medium');
         }
-        if ($website->contentDrafts()->whereIn('status', ['content_draft', 'human_edit'])->exists()) {
-            $actions[] = ['text' => 'Drafts are waiting for your review.', 'route' => 'content.index'];
+        if ($ideas = $w->contentBriefs()->where('status', ContentStatus::Idea->value)->count()) {
+            $add("{$ideas} article idea(s) are ready to write", 'Autopilot picked topics people search for that your site does not cover yet. Click "Generate draft".', 'content.index', 'medium');
+        }
+        if ($ready = $w->backlinkProspects()->where('status', 'discovered')->whereHas('outreachDrafts', fn ($q) => $q->where('status', '!=', 'discarded'))->count()) {
+            $add("Send {$ready} outreach message(s)", 'These sites list tools like yours. Personalise the drafted message and send it from your own email.', 'backlinks.index', 'medium');
+        }
+        if ($med = $w->issues()->where('status', 'open')->where('severity', 'medium')->count()) {
+            $add("Improve {$med} medium issue(s)", 'Mostly missing titles, descriptions or headings. Quick wins.', 'audit.index', 'low');
         }
 
-        return array_slice($actions, 0, 4);
+        return array_slice($t, 0, 6);
     }
 }
