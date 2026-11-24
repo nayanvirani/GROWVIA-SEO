@@ -8,7 +8,10 @@ use App\Domain\Crawl\CrawlService;
 use App\Domain\Keyword\KeywordResearchService;
 use App\Models\ProviderUsage;
 use App\Models\Website;
+use App\Notifications\StaleDraftsReminder;
+use App\Notifications\WeeklyDigest;
 use App\Support\Enums\ContentStatus;
+use App\Support\Notifier;
 use App\Support\Security\HostGuard;
 use Illuminate\Support\Facades\Http;
 
@@ -84,7 +87,7 @@ class Automations
     {
         $since = now()->subWeek();
 
-        return [
+        $summary = [
             'new_issues' => $w->issues()->where('first_seen_at', '>=', $since)->count(),
             'resolved_issues' => $w->issues()->where('resolved_at', '>=', $since)->count(),
             'open_high' => $w->issues()->where('status', 'open')->where('severity', 'high')->count(),
@@ -92,6 +95,9 @@ class Automations
             'clicks_last_7d' => (int) $w->analytics()->where('date', '>=', now()->subDays(10))->sum('clicks'),
             'provider_requests' => ProviderUsage::where('website_id', $w->id)->where('created_at', '>=', $since)->count(),
         ];
+        Notifier::website($w, new WeeklyDigest($w, $summary));
+
+        return $summary + ['notified' => $w->workspace->members()->count()];
     }
 
     private function staleDrafts(Website $w): array
@@ -99,6 +105,11 @@ class Automations
         $stale = $w->contentDrafts()->whereIn('status', [ContentStatus::ContentDraft->value, ContentStatus::HumanEdit->value])
             ->where('updated_at', '<', now()->subDays(14))->get(['id', 'title']);
 
-        return ['stale_drafts' => $stale->map(fn ($d) => ['id' => $d->id, 'title' => $d->title])->all()];
+        $drafts = $stale->map(fn ($d) => ['id' => $d->id, 'title' => $d->title])->all();
+        if ($drafts) {
+            Notifier::website($w, new StaleDraftsReminder($w, $drafts));
+        }
+
+        return ['stale_drafts' => $drafts, 'notified' => (bool) $drafts];
     }
 }

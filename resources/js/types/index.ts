@@ -32,6 +32,7 @@ export interface SharedData {
     websites: WebsiteSummary[];
     currentWebsite: WebsiteSummary | null;
     providers: { ai: string; seo_data: string };
+    unreadNotifications: number;
     flash: { success: string | null; error: string | null; data: Record<string, any> | null };
     errors: Record<string, string>;
     ziggy: {

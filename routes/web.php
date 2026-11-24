@@ -11,6 +11,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('websites/create', [Web\WebsiteController::class, 'create'])->name('websites.create');
     Route::post('websites', [Web\WebsiteController::class, 'store'])->name('websites.store');
 
+    Route::get('notifications', [Web\NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('notifications/{id}', [Web\NotificationController::class, 'open'])->name('notifications.open');
+    Route::post('notifications/read-all', [Web\NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::get('settings/notifications', [Web\NotificationController::class, 'editPreferences'])->name('notifications.preferences');
+    Route::patch('settings/notifications', [Web\NotificationController::class, 'updatePreferences'])->name('notifications.preferences.update');
+
     Route::get('integrations', [Web\IntegrationController::class, 'index'])->name('integrations.index');
     Route::get('integrations/search-console/redirect', [Web\IntegrationController::class, 'searchConsoleRedirect'])->name('integrations.search-console.redirect');
     Route::get('integrations/search-console/callback', [Web\IntegrationController::class, 'searchConsoleCallback'])->name('integrations.search-console.callback');

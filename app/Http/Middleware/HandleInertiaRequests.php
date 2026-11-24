@@ -31,6 +31,7 @@ class HandleInertiaRequests extends Middleware
             'currentWebsite' => fn () => $current instanceof Website
                 ? $current->only(['id', 'name', 'base_url', 'normalized_host', 'ownership_confirmed', 'status'])
                 : null,
+            'unreadNotifications' => fn () => $user?->unreadNotifications()->count() ?? 0,
             'providers' => fn () => ['ai' => config('seo.ai.provider'), 'seo_data' => config('seo.seo_data.provider')],
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),

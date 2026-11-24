@@ -6,7 +6,9 @@ use App\Domain\Audit\AuditEngine;
 use App\Domain\Crawl\CrawlerClient;
 use App\Domain\Crawl\PageIngestor;
 use App\Models\CrawlRun;
+use App\Notifications\CrawlFinished;
 use App\Support\ActivityLogger;
+use App\Support\Notifier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -71,14 +73,18 @@ class PollCrawl implements ShouldQueue
             'error_summary' => array_slice($result['errors'] ?? [], 0, 50) ?: null,
         ]);
         ActivityLogger::log($run->website, 'crawl.finished', $run, ['status' => $run->status, 'pages' => $run->pages_crawled]);
+        Notifier::website($run->website, new CrawlFinished($run));
     }
 
     public function failed(Throwable $e): void
     {
-        CrawlRun::whereKey($this->crawlRunId)->whereIn('status', CrawlRun::ACTIVE_STATUSES)->update([
+        $updated = CrawlRun::whereKey($this->crawlRunId)->whereIn('status', CrawlRun::ACTIVE_STATUSES)->update([
             'status' => 'failed',
             'completed_at' => now(),
             'error_summary' => json_encode(['message' => $e->getMessage()]),
         ]);
+        if ($updated && $run = CrawlRun::with('website')->find($this->crawlRunId)) {
+            Notifier::website($run->website, new CrawlFinished($run));
+        }
     }
 }

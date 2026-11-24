@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Domain\Crawl\CrawlerClient;
 use App\Models\CrawlRun;
+use App\Notifications\CrawlFinished;
+use App\Support\Notifier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -54,5 +56,8 @@ class StartCrawl implements ShouldQueue
             'completed_at' => now(),
             'error_summary' => json_encode(['message' => $e->getMessage()]),
         ]);
+        if ($run = CrawlRun::with('website')->find($this->crawlRunId)) {
+            Notifier::website($run->website, new CrawlFinished($run));
+        }
     }
 }
