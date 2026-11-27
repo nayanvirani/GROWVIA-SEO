@@ -55,6 +55,7 @@ const outreach = (p: any) => router.post(route('backlinks.outreach.store', [w.va
 const saveOutreach = (o: any, data: Record<string, unknown>) =>
     router.patch(route('backlinks.outreach.update', [w.value.id, o.id]), data, { preserveScroll: true });
 const copy = (o: any) => navigator.clipboard?.writeText(`Subject: ${o.subject}\n\n${o.body}`);
+const copyEmail = (e: string) => navigator.clipboard?.writeText(e);
 const typeLabel: Record<string, string> = {
     listicle: '"Best tools" list',
     resource_page: 'Resource page',
@@ -158,6 +159,28 @@ const typeLabel: Record<string, string> = {
                     </div>
                     <p v-if="p.risk_flags_json?.length" class="mt-1 text-xs text-red-700">
                         ⚠ {{ p.risk_flags_json.map((r: string) => label(r)).join(', ') }}
+                    </p>
+                    <p v-if="p.prospect_type !== 'existing_link'" class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        <span class="font-medium">Where to send your message:</span>
+                        <a
+                            v-if="p.evidence_json?.contact_url"
+                            :href="p.evidence_json.contact_url"
+                            target="_blank"
+                            rel="noopener noreferrer nofollow"
+                            class="text-primary hover:underline"
+                            >{{ p.evidence_json.contact_kind === 'submit' ? 'Submit / write-for-us page' : 'Contact page' }} ↗</a
+                        >
+                        <span v-for="e in p.evidence_json?.contact_emails ?? []" :key="e" class="inline-flex items-center gap-1">
+                            <a :href="`mailto:${e}`" class="text-primary hover:underline">{{ e }}</a>
+                            <button title="Copy email" @click="copyEmail(e)"><Copy class="h-3 w-3" /></button>
+                        </span>
+                        <span v-if="!p.evidence_json?.contact_url && !(p.evidence_json?.contact_emails ?? []).length" class="text-muted-foreground">
+                            {{
+                                p.evidence_json?.contact_checked_at
+                                    ? 'No contact page found — look for the author’s name or the site’s social profiles.'
+                                    : 'Not looked up yet.'
+                            }}
+                        </span>
                     </p>
                     <div v-if="open === p.id || p.outreach_drafts.length" class="mt-3 grid gap-3 rounded-lg bg-muted/50 p-3 text-sm md:grid-cols-2">
                         <div>
