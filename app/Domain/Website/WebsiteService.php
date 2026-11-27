@@ -51,7 +51,7 @@ class WebsiteService
     public function update(Website $website, array $data): Website
     {
         $settings = $website->settings();
-        foreach (['autopilot', 'crawl_max_pages', 'crawl_max_depth', 'crawl_frequency', 'brand_voice', 'description', 'brand_facts', 'forbidden_claims'] as $key) {
+        foreach (['autopilot', 'crawl_max_pages', 'crawl_max_depth', 'crawl_frequency', 'brand_voice', 'description', 'brand_facts', 'forbidden_claims', 'contact_email'] as $key) {
             if (array_key_exists($key, $data)) {
                 $settings[$key] = $data[$key];
             }

@@ -130,4 +130,12 @@ class ListingTest extends TestCase
         $this->actingAs($user)->get(route('websites.show', $website))->assertInertia(fn ($p) => $p
             ->where('overview.todo', fn ($todo) => collect($todo)->contains(fn ($t) => str_starts_with($t['text'], 'Get listed on G2'))));
     }
+
+    public function test_contact_email_is_saved_in_settings_and_shown_for_copying()
+    {
+        [$user, $website] = $this->userWithWebsite();
+        $this->actingAs($user)->patch(route('websites.update', $website), ['contact_email' => 'owner@example.com'])->assertSessionHasNoErrors();
+        $this->actingAs($user)->patch(route('websites.update', $website), ['contact_email' => 'not-an-email'])->assertSessionHasErrors('contact_email');
+        $this->actingAs($user)->get(route('listings.index', $website))->assertInertia(fn ($p) => $p->where('pack.contact_email', 'owner@example.com'));
+    }
 }

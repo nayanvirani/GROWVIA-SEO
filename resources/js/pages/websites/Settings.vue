@@ -37,6 +37,7 @@ const form = useForm({
     brand_voice: props.settings.brand_voice,
     brand_facts: props.settings.brand_facts,
     forbidden_claims: props.settings.forbidden_claims,
+    contact_email: props.settings.contact_email ?? '',
 });
 const save = () =>
     form
@@ -107,6 +108,11 @@ const destroy = () => router.delete(route('websites.destroy', props.website.id))
                         ><TextArea v-model="form.brand_facts" :rows="6" placeholder="Features, integrations and claims you have verified." />
                     </div>
                     <div class="grid gap-1.5"><Label>Forbidden claims</Label><TextArea v-model="form.forbidden_claims" :rows="6" /></div>
+                    <div class="grid gap-1.5">
+                        <Label>Email for directory sign-ups</Label><Input v-model="form.contact_email" type="email" placeholder="you@example.com" />
+                        <p class="text-xs text-muted-foreground">Shown in Get listed for copying. Stored only in this app.</p>
+                        <InputError :message="form.errors.contact_email" />
+                    </div>
                 </div>
             </Panel>
             <div class="lg:col-span-2"><Button :disabled="form.processing">Save settings</Button></div>

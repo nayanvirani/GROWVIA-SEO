@@ -20,7 +20,8 @@ class ListingController extends Controller
     public function index(Website $website): Response
     {
         return Inertia::render('listings/Index', [
-            'pack' => $this->kit->pack($website),
+            // The contact email is read live from settings so changing it never needs a rewrite.
+            'pack' => ['contact_email' => $website->setting('contact_email')] + $this->kit->pack($website),
             'fields' => ListingKit::FIELDS,
             'platforms' => $this->kit->platforms($website),
             'mentions' => $website->backlinkProspects()->where('prospect_type', 'unlinked_mention')->with('outreachDrafts')

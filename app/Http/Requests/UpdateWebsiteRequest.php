@@ -29,6 +29,7 @@ class UpdateWebsiteRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:2000'],
             'brand_facts' => ['nullable', 'string', 'max:10000'],
             'forbidden_claims' => ['nullable', 'string', 'max:2000'],
+            'contact_email' => ['nullable', 'email:rfc', 'max:255'],
         ];
     }
 }

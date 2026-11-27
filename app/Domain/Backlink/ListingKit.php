@@ -21,6 +21,7 @@ class ListingKit
     public const FIELDS = [
         'name' => ['label' => 'Product name', 'max' => 60],
         'website' => ['label' => 'Website', 'max' => 200],
+        'contact_email' => ['label' => 'Email for sign-ups', 'max' => 255],
         'tagline' => ['label' => 'Tagline', 'max' => 60],
         'short_description' => ['label' => 'Short description', 'max' => 160],
         'long_description' => ['label' => 'Full description', 'max' => 2000],
