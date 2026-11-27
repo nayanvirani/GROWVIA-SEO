@@ -75,7 +75,7 @@ const words = computed(() => (form.body_markdown.match(/\w+/g) ?? []).length);
         </template>
 
         <div class="grid gap-4 xl:grid-cols-3">
-            <div class="grid gap-4 xl:col-span-2">
+            <div class="grid min-w-0 gap-4 xl:col-span-2">
                 <Panel title="SEO fields">
                     <div class="grid gap-3">
                         <div class="grid gap-1.5"><Label>Title</Label><Input v-model="form.title" /></div>
@@ -117,7 +117,7 @@ const words = computed(() => (form.body_markdown.match(/\w+/g) ?? []).length);
                 </Panel>
             </div>
 
-            <div class="grid content-start gap-4">
+            <div class="grid min-w-0 content-start gap-4">
                 <Panel
                     v-if="canExport"
                     title="Published on your website?"
@@ -161,10 +161,10 @@ const words = computed(() => (form.body_markdown.match(/\w+/g) ?? []).length);
                                         s.title || s.url
                                     }}</a>
                                     <p v-if="s.snippet" class="text-xs italic text-muted-foreground">Good spot: “…{{ s.snippet }}…”</p>
-                                    <p class="mt-1 flex items-center gap-1 text-xs">
+                                    <p class="mt-1 flex flex-wrap items-center gap-1 text-xs">
                                         Link text: <code class="rounded bg-muted px-1">{{ s.anchor }}</code>
                                         <button class="text-primary" title="Copy" @click="copyText(s.anchor)"><Copy class="h-3 w-3" /></button>
-                                        → <code class="rounded bg-muted px-1">{{ draft.published_url }}</code>
+                                        → <code class="break-all rounded bg-muted px-1">{{ draft.published_url }}</code>
                                         <button class="text-primary" title="Copy" @click="copyText(draft.published_url)">
                                             <Copy class="h-3 w-3" />
                                         </button>

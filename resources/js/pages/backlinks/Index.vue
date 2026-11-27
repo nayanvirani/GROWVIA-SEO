@@ -56,6 +56,12 @@ const saveOutreach = (o: any, data: Record<string, unknown>) =>
     router.patch(route('backlinks.outreach.update', [w.value.id, o.id]), data, { preserveScroll: true });
 const copy = (o: any) => navigator.clipboard?.writeText(`Subject: ${o.subject}\n\n${o.body}`);
 const copyEmail = (e: string) => navigator.clipboard?.writeText(e);
+/** "apps.shopify.com/bundler-product-bundles" -> "Bundler product bundles" */
+const competitorName = (id: string) => {
+    if (!id.includes('/')) return id;
+    const name = id.split('/').pop()!.replace(/-/g, ' ');
+    return (name.charAt(0).toUpperCase() + name.slice(1)).slice(0, 40);
+};
 const typeLabel: Record<string, string> = {
     listicle: '"Best tools" list',
     resource_page: 'Resource page',
@@ -115,16 +121,16 @@ const typeLabel: Record<string, string> = {
             <ul class="divide-y">
                 <li v-for="p in prospects.data" :key="p.id" class="py-3">
                     <div class="flex flex-wrap items-center justify-between gap-2">
-                        <button class="min-w-0 text-left" @click="open = open === p.id ? null : p.id">
-                            <p class="text-sm font-medium">{{ p.page_title || p.source_domain }}</p>
-                            <p class="truncate text-xs text-muted-foreground">
+                        <button class="min-w-0 flex-1 text-left" @click="open = open === p.id ? null : p.id">
+                            <p class="break-words text-sm font-medium">{{ p.page_title || p.source_domain }}</p>
+                            <p class="text-xs text-muted-foreground">
                                 {{ typeLabel[p.prospect_type] ?? label(p.prospect_type) }} · {{ p.source_domain }}
-                                <span v-if="p.evidence_json?.competitors_linked?.length" class="text-emerald-700">
-                                    · lists {{ p.evidence_json.competitors_linked.join(', ') }}</span
-                                >
+                            </p>
+                            <p v-if="p.evidence_json?.competitors_linked?.length" class="break-words text-xs text-emerald-700">
+                                Already lists: {{ p.evidence_json.competitors_linked.map(competitorName).join(', ') }}
                             </p>
                         </button>
-                        <div class="flex items-center gap-2">
+                        <div class="flex shrink-0 items-center gap-2">
                             <span
                                 :class="[
                                     'rounded-md px-2 py-0.5 text-sm font-semibold tabular-nums',
@@ -182,7 +188,10 @@ const typeLabel: Record<string, string> = {
                             }}
                         </span>
                     </p>
-                    <div v-if="open === p.id || p.outreach_drafts.length" class="mt-3 grid gap-3 rounded-lg bg-muted/50 p-3 text-sm md:grid-cols-2">
+                    <div
+                        v-if="open === p.id || p.outreach_drafts.length"
+                        class="mt-3 grid gap-3 rounded-lg bg-muted/50 p-3 text-sm md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+                    >
                         <div>
                             <p class="mb-1 font-medium">Why this score</p>
                             <table class="w-full text-xs">

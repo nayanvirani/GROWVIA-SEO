@@ -21,7 +21,7 @@ const errorList = computed(() => Object.values(page.props.errors ?? {}));
 <template>
     <Head :title="title" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        <div class="flex min-w-0 flex-1 flex-col gap-4 p-4 md:p-6">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h1 class="text-xl font-semibold tracking-tight">{{ title }}</h1>
