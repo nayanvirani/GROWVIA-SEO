@@ -132,9 +132,11 @@ class AutopilotTest extends TestCase
         Bus::assertChained([
             fn (RunAutomation $j) => $j->key === 'keyword_research',
             fn (RunAutomation $j) => $j->key === 'backlink_discovery',
+            fn (RunAutomation $j) => $j->key === 'brand_mentions',
+            fn (RunAutomation $j) => $j->key === 'listing_check',
         ]);
 
-        foreach (['keyword_research', 'backlink_discovery'] as $key) {
+        foreach (['keyword_research', 'backlink_discovery', 'brand_mentions', 'listing_check'] as $key) {
             $website->automationRuns()->create(['workspace_id' => $website->workspace_id, 'automation_key' => $key, 'status' => 'succeeded', 'started_at' => now()]);
         }
         Bus::fake([RunAutomation::class]);

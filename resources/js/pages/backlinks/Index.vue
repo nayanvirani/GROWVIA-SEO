@@ -60,6 +60,7 @@ const typeLabel: Record<string, string> = {
     resource_page: 'Resource page',
     blog: 'Blog article',
     existing_link: 'Already links to you',
+    unlinked_mention: 'Mentions you, no link yet',
     competitor_link: 'Competitor link',
 };
 </script>

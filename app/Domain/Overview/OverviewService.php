@@ -85,6 +85,12 @@ class OverviewService
         if ($ready = $w->backlinkProspects()->where('status', 'discovered')->whereHas('outreachDrafts', fn ($q) => $q->where('status', '!=', 'discarded'))->count()) {
             $add("Send {$ready} outreach message(s)", 'These sites list tools like yours. Personalise the drafted message and send it from your own email.', 'backlinks.index', 'medium');
         }
+        $done = $w->listings()->whereIn('status', ['submitted', 'live', 'skipped'])->pluck('platform')->all();
+        $next = collect(config('listings'))->sortBy('priority')->except($done)->first();
+        if ($next) {
+            $add("Get listed on {$next['name']}".($next['minutes'] ? " (about {$next['minutes']} min)" : ''),
+                'A trusted site that links to you. Every field is written for you: open the page and paste.', 'listings.index', 'medium');
+        }
         if ($med = $w->issues()->where('status', 'open')->where('severity', 'medium')->count()) {
             $add("Improve {$med} medium issue(s)", 'Mostly missing titles, descriptions or headings. Quick wins.', 'audit.index', 'low');
         }

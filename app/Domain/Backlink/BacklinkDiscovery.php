@@ -76,7 +76,7 @@ class BacklinkDiscovery
             $done++;
             foreach ($results as $r) {
                 $host = rescue(fn () => Url::host($r['url']), null, false);
-                if (! $host || $host === $website->normalized_host || $this->skipped($host)) {
+                if (! $host || $host === $website->normalized_host || self::skipped($host)) {
                     continue;
                 }
                 $type = $this->classify($r['url'], $r['title']);
@@ -197,7 +197,7 @@ class BacklinkDiscovery
         return $path === '' ? 'homepage' : 'blog';
     }
 
-    private function skipped(string $host): bool
+    public static function skipped(string $host): bool
     {
         foreach (self::SKIP_DOMAINS as $d) {
             $matches = str_ends_with($d, '.')
@@ -220,7 +220,7 @@ class BacklinkDiscovery
             return $slug !== '' && ! in_array($slug, self::MARKETPLACES[$host], true) && preg_match('/^[a-z0-9-]+$/', $slug) ? "{$host}/{$slug}" : null;
         }
 
-        return $this->skipped($host) ? null : $host;
+        return self::skipped($host) ? null : $host;
     }
 
     private function recordCompetitors(Website $website, array $linkCounts, array $homepagesSeen): void

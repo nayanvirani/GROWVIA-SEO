@@ -81,6 +81,11 @@ Route::middleware(['auth'])->group(function () {
         Route::post('prospects/{prospect}/outreach', [Web\BacklinkController::class, 'outreach'])->middleware('throttle:ai')->name('backlinks.outreach.store');
         Route::patch('outreach/{outreach}', [Web\BacklinkController::class, 'updateOutreach'])->name('backlinks.outreach.update');
 
+        Route::get('listings', [Web\ListingController::class, 'index'])->name('listings.index');
+        Route::post('listings/regenerate', [Web\ListingController::class, 'regenerate'])->middleware('throttle:ai')->name('listings.regenerate');
+        Route::post('listings/mentions', [Web\ListingController::class, 'findMentions'])->name('listings.mentions');
+        Route::patch('listings/{platform}', [Web\ListingController::class, 'update'])->name('listings.update');
+
         Route::get('automation', [Web\AutomationController::class, 'index'])->name('automation.index');
         Route::post('automation/{key}/run', [Web\AutomationController::class, 'run'])->name('automation.run');
         Route::post('automation/{key}/toggle', [Web\AutomationController::class, 'toggle'])->name('automation.toggle');

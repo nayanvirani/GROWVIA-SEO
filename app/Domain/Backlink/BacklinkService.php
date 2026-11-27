@@ -92,7 +92,11 @@ class BacklinkService
             'source_domain' => $prospect->source_domain,
             'source_url' => $prospect->source_url,
             'target_url' => $prospect->target_url,
-            'rules' => 'Personal, honest, no promises of payment or followed links, easy to decline.',
+            'kind' => $prospect->prospect_type,
+            'their_mention_of_us' => $prospect->evidence_json['mention'] ?? null,
+            'rules' => $prospect->prospect_type === 'unlinked_mention'
+                ? 'They already mentioned us without a link. Thank them briefly and ask if they could link the mention to our website. Two short paragraphs, friendly, easy to decline.'
+                : 'Personal, honest, no promises of payment or followed links, easy to decline.',
         ]);
 
         $draft = $prospect->outreachDrafts()->create([

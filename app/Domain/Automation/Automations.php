@@ -3,6 +3,8 @@
 namespace App\Domain\Automation;
 
 use App\Domain\Backlink\BacklinkDiscovery;
+use App\Domain\Backlink\BrandMentions;
+use App\Domain\Backlink\ListingKit;
 use App\Domain\Crawl\CrawlService;
 use App\Domain\Keyword\KeywordResearchService;
 use App\Jobs\RunAutomation;
@@ -23,6 +25,8 @@ class Automations
         private readonly CrawlService $crawls,
         private readonly KeywordResearchService $keywords,
         private readonly BacklinkDiscovery $discovery,
+        private readonly BrandMentions $mentions,
+        private readonly ListingKit $listings,
     ) {}
 
     public function execute(Website $website, string $key, string $trigger = 'schedule')
@@ -36,6 +40,8 @@ class Automations
             'website_crawl' => ['crawl_run_id' => $this->crawls->queue($w, $trigger === 'manual' ? 'manual' : 'schedule')->id],
             'keyword_research' => $this->keywords->autoResearch($w),
             'backlink_discovery' => $this->discovery->discover($w),
+            'brand_mentions' => $this->mentions->find($w),
+            'listing_check' => $this->listings->verifyAll($w),
             'critical_issue_recheck' => $this->recheckCritical($w),
             'weekly_digest' => $this->digest($w),
             'stale_draft_reminder' => $this->staleDrafts($w),
@@ -75,6 +81,12 @@ class Automations
         }
         if ($force || ! $recent('backlink_discovery')) {
             $jobs[] = new RunAutomation($w->id, 'backlink_discovery', 'autopilot');
+        }
+        if ($force || ! $recent('brand_mentions')) {
+            $jobs[] = new RunAutomation($w->id, 'brand_mentions', 'autopilot');
+        }
+        if ($force || ! $recent('listing_check')) {
+            $jobs[] = new RunAutomation($w->id, 'listing_check', 'autopilot');
         }
         if ($jobs) {
             Bus::chain($jobs)->onQueue('low')->dispatch();

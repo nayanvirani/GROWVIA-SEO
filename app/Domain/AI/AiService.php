@@ -38,6 +38,7 @@ TXT;
         'classify_intent' => ['results'],
         'seed_topics' => ['seeds'],
         'relevance_check' => ['results'],
+        'listing_pack' => ['tagline', 'short_description', 'long_description'],
     ];
 
     public function __construct(private readonly AiProviderFactory $providers) {}

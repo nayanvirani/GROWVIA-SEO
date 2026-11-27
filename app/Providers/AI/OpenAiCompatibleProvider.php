@@ -2,6 +2,7 @@
 
 namespace App\Providers\AI;
 
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -107,9 +108,13 @@ class OpenAiCompatibleProvider implements AiContentProvider
         return is_array($data) ? $data : [];
     }
 
+    /** Free tiers are often briefly overloaded (502/503/529): wait and retry before giving up. */
     private function post(string $path, array $payload): Response
     {
-        return $this->http()->timeout(180)->post($this->url($path), $payload);
+        return $this->http()->timeout(180)
+            ->retry(3, fn (int $attempt) => $attempt * 4000, fn ($e) => $e instanceof RequestException
+                && in_array($e->response->status(), [500, 502, 503, 504, 529], true), throw: false)
+            ->post($this->url($path), $payload);
     }
 
     private function http()
@@ -142,6 +147,7 @@ class OpenAiCompatibleProvider implements AiContentProvider
 
         throw new RuntimeException(match (true) {
             $response->status() === 429 => "The free limit of {$this->name()} was reached. Try again later or pick another provider. {$detail}",
+            in_array($response->status(), [500, 502, 503, 504, 529], true) => "{$this->name()} is busy right now (tried 3 times). Try again in a few minutes. {$detail}",
             in_array($response->status(), [401, 403], true) => "{$this->name()} rejected the API key. Check it in Settings → AI & data providers.",
             $response->status() === 404 => "{$this->name()} cannot use model \"{$this->config['model']}\". Click Load models and pick the recommended one. {$detail}",
             default => "{$this->name()} returned HTTP {$response->status()}. {$detail}",

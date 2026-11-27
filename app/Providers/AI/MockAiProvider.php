@@ -27,6 +27,7 @@ class MockAiProvider implements AiContentProvider
             'outreach_email' => $this->outreach($context),
             'classify_intent' => $this->classify($context),
             'seed_topics' => $this->seedTopics($context),
+            'listing_pack' => [],
             default => [],
         };
 
@@ -142,6 +143,15 @@ class MockAiProvider implements AiContentProvider
     {
         $site = $this->site($c);
         $title = $c['prospect_title'] ?? $c['source_domain'] ?? 'your resource';
+
+        if (($c['kind'] ?? null) === 'unlinked_mention') {
+            return [
+                'subject' => Str::limit("Thanks for mentioning {$site}", 90, ''),
+                'body' => "Hi there,\n\nThank you for mentioning {$site} in \"{$title}\" — we really appreciate it.\n\n"
+                    ."Would you be open to linking the mention to {$c['target_url']} so readers can find us easily? "
+                    ."Totally fine if not.\n\nBest regards,\n[Your name]",
+            ];
+        }
 
         return [
             'subject' => Str::limit("A resource suggestion for {$title}", 90, ''),

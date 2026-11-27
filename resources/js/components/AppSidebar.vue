@@ -4,7 +4,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Activity, FileText, Gauge, Image, KeyRound, Link2, Plug, Plus, Search, Settings2, Users, Workflow } from 'lucide-vue-next';
+import { Activity, BadgeCheck, FileText, Gauge, Image, KeyRound, Link2, Plug, Plus, Search, Settings2, Users, Workflow } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -22,6 +22,7 @@ const siteNav = computed(() => {
         { title: 'Content Studio', url: route('content.index', w.id), icon: Activity },
         { title: 'Image Studio', url: route('images.index', w.id), icon: Image },
         { title: 'Backlinks', url: route('backlinks.index', w.id), icon: Link2 },
+        { title: 'Get listed', url: route('listings.index', w.id), icon: BadgeCheck },
         { title: 'Automation', url: route('automation.index', w.id), icon: Workflow },
         { title: 'Website Settings', url: route('websites.settings', w.id), icon: Settings2 },
     ];
