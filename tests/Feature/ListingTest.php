@@ -128,7 +128,7 @@ class ListingTest extends TestCase
         [$user, $website] = $this->userWithWebsite();
         app(ListingKit::class)->update($website, 'shopify_app_store', ['status' => 'live']);
         $this->actingAs($user)->get(route('websites.show', $website))->assertInertia(fn ($p) => $p
-            ->where('overview.todo', fn ($todo) => collect($todo)->contains(fn ($t) => str_starts_with($t['text'], 'Get listed on G2'))));
+            ->where('overview.todo', fn ($todo) => collect($todo)->contains(fn ($t) => str_starts_with($t['text'], 'Get listed on SaaSHub'))));
     }
 
     public function test_contact_email_is_saved_in_settings_and_shown_for_copying()
