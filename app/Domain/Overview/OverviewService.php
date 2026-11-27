@@ -3,6 +3,7 @@
 namespace App\Domain\Overview;
 
 use App\Domain\Audit\AuditRules;
+use App\Domain\Settings\ProviderSettings;
 use App\Models\ActivityLog;
 use App\Models\Website;
 use App\Providers\AI\AiProviderFactory;
@@ -56,6 +57,19 @@ class OverviewService
         ];
     }
 
+    /** Recent backlink/mention runs failed because the key-free search was rate-limited. */
+    private function searchBlocked(Website $w): bool
+    {
+        if (app(ProviderSettings::class)->get($w->workspace_id, 'search')['preset'] !== 'duckduckgo') {
+            return false;
+        }
+
+        return $w->automationRuns()->whereIn('automation_key', ['backlink_discovery', 'brand_mentions'])->where('started_at', '>', now()->subDays(14))
+            ->latest('started_at')->limit(3)->get()
+            ->filter(fn ($r) => collect($r->result_json['errors'] ?? [])->contains(fn ($e) => str_contains((string) $e, 'DuckDuckGo')))
+            ->count() >= 2;
+    }
+
     /** A plain-English to-do list for someone who is not an SEO specialist. */
     private function todo(Website $w, $latest): array
     {
@@ -69,6 +83,9 @@ class OverviewService
         }
         if (! $this->ai->isReal($w->workspace_id)) {
             $add('Connect a free AI provider', 'Without it, drafts are only templates. Gemini or Groq are free and take 2 minutes to set up.', 'providers.index', 'high');
+        }
+        if ($this->searchBlocked($w)) {
+            $add('Add a free Tavily key so link searching works', 'DuckDuckGo keeps blocking automatic searches from your connection, so new backlink opportunities and brand mentions are not being found. Tavily is free (1,000 searches/month, no card).', 'providers.index', 'high');
         }
         if (! $latest) {
             $add('Run autopilot for the first time', 'It reads your site, finds problems, researches keywords and finds link opportunities.', 'websites.show', 'high');

@@ -161,4 +161,19 @@ class AutopilotTest extends TestCase
             ->where('overview.todo.0.text', 'Connect a free AI provider')
             ->where('overview.autopilot.ai_real', false));
     }
+
+    public function test_overview_asks_for_a_search_key_when_duckduckgo_keeps_blocking()
+    {
+        [$user, $website] = $this->userWithWebsite();
+        foreach (['backlink_discovery', 'brand_mentions'] as $key) {
+            $website->automationRuns()->create(['workspace_id' => $website->workspace_id, 'automation_key' => $key, 'status' => 'succeeded',
+                'started_at' => now(), 'result_json' => ['errors' => ['DuckDuckGo is temporarily limiting searches (HTTP 202).']]]);
+        }
+        $this->actingAs($user)->get(route('websites.show', $website))
+            ->assertInertia(fn ($p) => $p->where('overview.todo', fn ($t) => collect($t)->contains(fn ($i) => str_contains($i['text'], 'Tavily'))));
+
+        $this->actingAs($user)->patch(route('providers.update', 'search'), ['preset' => 'tavily', 'api_key' => 'tvly-x']);
+        $this->actingAs($user)->get(route('websites.show', $website))
+            ->assertInertia(fn ($p) => $p->where('overview.todo', fn ($t) => ! collect($t)->contains(fn ($i) => str_contains($i['text'], 'Tavily'))));
+    }
 }
