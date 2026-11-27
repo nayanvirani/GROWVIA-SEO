@@ -112,9 +112,10 @@ const highFlags = (d: any) => (d.quality_flags_json ?? []).filter((q: any) => q.
                                     {{ b.content_type.replace('_', ' ') }}<span v-if="b.primary_keyword"> · {{ b.primary_keyword.keyword }}</span
                                     ><span v-if="b.page"> · {{ path(b.page.canonical_url) }}</span> · {{ b.drafts_count }} drafts
                                 </p>
+                                <p v-if="b.status === 'generation_failed' && b.last_error" class="mt-0.5 text-xs text-red-700">{{ b.last_error }}</p>
                             </div>
                             <div class="flex items-center gap-2">
-                                <Badge :value="b.status" />
+                                <Badge :value="b.status" :title="b.last_error ?? ''" />
                                 <Button size="sm" variant="outline" :disabled="b.status === 'generating'" @click="generate(b)"
                                     ><Sparkles /> {{ b.drafts_count ? 'New draft' : 'Generate draft' }}</Button
                                 >

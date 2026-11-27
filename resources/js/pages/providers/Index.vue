@@ -63,9 +63,9 @@ const loadModels = () => {
             preserveScroll: true,
             onFinish: () => (loading.value = false),
             onSuccess: () => {
-                const hint = aiPreset.value?.model_hint;
-                if (!ai.model && loadedModels.value.length)
-                    ai.model = loadedModels.value.find((m) => hint && m.includes(hint)) ?? loadedModels.value[0];
+                const rec = page.props.flash?.data?.recommended as string | undefined;
+                if (rec) ai.model = rec;
+                else if (!loadedModels.value.includes(ai.model) && loadedModels.value.length) ai.model = loadedModels.value[0];
             },
         },
     );
@@ -161,7 +161,9 @@ const test = (kind: string) => {
                                     v-model="ai.model"
                                     class="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
                                 >
-                                    <option v-for="m in loadedModels" :key="m" :value="m">{{ m }}</option>
+                                    <option v-for="m in loadedModels" :key="m" :value="m">
+                                        {{ m }}{{ m === page.props.flash?.data?.recommended ? ' (recommended)' : '' }}
+                                    </option>
                                 </select>
                                 <Input v-else v-model="ai.model" placeholder="Click Load models" :disabled="!canManage" />
                                 <Button type="button" variant="outline" :disabled="loading || !canManage" @click="loadModels"

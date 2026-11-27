@@ -46,6 +46,6 @@ class GenerateContentDraft implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $e): void
     {
-        ContentBrief::whereKey($this->briefId)->update(['status' => 'generation_failed']);
+        ContentBrief::whereKey($this->briefId)->update(['status' => 'generation_failed', 'last_error' => mb_substr($e->getMessage(), 0, 490)]);
     }
 }

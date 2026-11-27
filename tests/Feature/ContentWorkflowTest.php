@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Content\QualityChecker;
 use App\Models\ContentBrief;
 use App\Models\ContentDraft;
 use App\Models\Keyword;
@@ -87,5 +88,17 @@ class ContentWorkflowTest extends TestCase
         $this->assertNotEmpty($img->alt_text);
         $this->assertStringEndsWith('.webp', $img->suggested_filename);
         $this->actingAs($user)->get(route('images.index', $website))->assertOk();
+    }
+
+    public function test_quality_checks_avoid_false_alarms_but_catch_competitor_claims()
+    {
+        [$user, $website] = $this->userWithWebsite();
+        $website->competitors()->create(['domain' => 'rival.com']);
+        $check = fn (string $body, string $kw) => collect(app(QualityChecker::class)
+            ->check(ContentDraft::create(['website_id' => $website->id, 'type' => 'blog_post', 'title' => 'x', 'body_markdown' => $body]), $kw))->pluck('type')->all();
+
+        $this->assertSame([], $check("## What Is Cross-Selling in Shopify?\n\nCross-Selling vs. Upselling explained.", 'what is cross selling in shopify'));
+        $this->assertContains('unverified_comparison', $check('Our app is better than Rival for shopify bundles.', 'shopify bundles'));
+        $this->assertContains('keyword_missing', $check('Nothing about the topic here at all.', 'shopify bundles'));
     }
 }

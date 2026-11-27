@@ -116,4 +116,29 @@ class ProviderSettingsTest extends TestCase
         $this->assertSame(['a' => 1], OpenAiCompatibleProvider::extractJson('Here you go: {"a":1} hope it helps'));
         $this->assertSame([], OpenAiCompatibleProvider::extractJson('no json'));
     }
+
+    public function test_recommends_a_current_general_model()
+    {
+        $gemini = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.8-flash-tts', 'gemini-3-flash-preview',
+            'gemini-2.5-flash-native-audio-preview-12-2025', 'gemini-flash-latest', 'gemini-omni-1.2-flash'];
+        $this->assertSame('gemini-flash-latest', OpenAiCompatibleProvider::recommend($gemini, 'flash'));
+        $this->assertSame('gemini-3.8-flash', OpenAiCompatibleProvider::recommend(array_diff($gemini, ['gemini-flash-latest']), 'flash'));
+        $this->assertSame('llama-3.3-70b-versatile', OpenAiCompatibleProvider::recommend(['whisper-large-v3', 'llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'llama-guard-4'], 'llama'));
+    }
+
+    public function test_retired_model_error_is_explained_and_saved_on_the_brief()
+    {
+        [$user, $website] = $this->userWithWebsite();
+        $this->actingAs($user)->patch(route('providers.update', 'ai'), ['preset' => 'gemini', 'api_key' => 'AIza-test', 'model' => 'gemini-2.5-flash']);
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response([['error' => ['code' => 404,
+            'message' => 'This model models/gemini-2.5-flash is no longer available to new users.']]], 404)]);
+
+        $brief = $website->contentBriefs()->create(['title' => 'Shopify bundles', 'status' => 'idea']);
+        $this->actingAs($user)->post(route('content.briefs.generate', [$website, $brief]));
+
+        $brief->refresh();
+        $this->assertSame('generation_failed', $brief->status);
+        $this->assertStringContainsString('no longer available to new users', $brief->last_error);
+        $this->assertStringContainsString('Load models', $brief->last_error);
+    }
 }

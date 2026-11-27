@@ -68,6 +68,31 @@ class OpenAiCompatibleProvider implements AiContentProvider
             ->unique()->sort()->values()->all();
     }
 
+    /**
+     * Pick a sensible general-purpose text model: prefer a "-latest" alias (kept current by the
+     * provider), then the newest version; skip audio/image/embedding/preview/lite variants.
+     */
+    public static function recommend(array $models, ?string $hint): ?string
+    {
+        $skip = '/(tts|image|audio|live|embed|vision|whisper|guard|moderation|preview|exp|lite|nano|omni|robotics|computer|search|transcribe|-\d{4}$|\d{2}-\d{4})/i';
+        $ok = array_values(array_filter($models, fn ($m) => ! preg_match($skip, $m) && (! $hint || str_contains($m, $hint))));
+        if (! $ok) {
+            return $models[0] ?? null;
+        }
+        $latest = array_values(array_filter($ok, fn ($m) => str_ends_with($m, '-latest')));
+        if ($latest) {
+            return $latest[0];
+        }
+        usort($ok, fn ($a, $b) => version_compare(self::version($b), self::version($a)));
+
+        return $ok[0];
+    }
+
+    private static function version(string $model): string
+    {
+        return preg_match('/(\d+(?:\.\d+)*)/', $model, $m) ? $m[1] : '0';
+    }
+
     public static function extractJson(string $content): array
     {
         $content = trim($content);
@@ -108,13 +133,17 @@ class OpenAiCompatibleProvider implements AiContentProvider
         if ($response->successful()) {
             return;
         }
-        $detail = $response->json('error.message') ?? $response->json('error') ?? $response->json('message') ?? '';
+        $json = $response->json();
+        if (is_array($json) && array_is_list($json)) {
+            $json = $json[0] ?? []; // Gemini wraps errors in a list
+        }
+        $detail = data_get($json, 'error.message') ?? data_get($json, 'error') ?? data_get($json, 'message') ?? '';
         $detail = is_string($detail) ? mb_substr($detail, 0, 200) : '';
 
         throw new RuntimeException(match (true) {
             $response->status() === 429 => "The free limit of {$this->name()} was reached. Try again later or pick another provider. {$detail}",
             in_array($response->status(), [401, 403], true) => "{$this->name()} rejected the API key. Check it in Settings → AI & data providers.",
-            $response->status() === 404 => "{$this->name()} does not know that model. Load the model list and pick one. {$detail}",
+            $response->status() === 404 => "{$this->name()} cannot use model \"{$this->config['model']}\". Click Load models and pick the recommended one. {$detail}",
             default => "{$this->name()} returned HTTP {$response->status()}. {$detail}",
         });
     }

@@ -90,7 +90,9 @@ class ProviderController extends Controller
             $models = $free ?: $models;
         }
 
-        return back()->with('flash_data', ['models' => $models, 'models_for' => $data['preset']]);
+        $recommended = OpenAiCompatibleProvider::recommend($models, config("seo.ai_presets.{$data['preset']}.model_hint"));
+
+        return back()->with('flash_data', ['models' => $models, 'models_for' => $data['preset'], 'recommended' => $recommended]);
     }
 
     public function test(Request $request, string $kind): RedirectResponse

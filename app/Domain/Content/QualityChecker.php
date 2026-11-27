@@ -2,6 +2,8 @@
 
 namespace App\Domain\Content;
 
+use App\Domain\Keyword\SiteProfile;
+use App\Models\Competitor;
 use App\Models\ContentDraft;
 use App\Models\WebsitePage;
 use Illuminate\Support\Str;
@@ -20,8 +22,12 @@ class QualityChecker
         if (preg_match('/\b(guarantee[ds]?|#1|number one|rank (first|#1)|best in the world|100% (safe|secure))\b/i', $body, $m)) {
             $flags[] = ['type' => 'unsupported_claim', 'severity' => 'high', 'message' => "Possible unsupported claim: \"{$m[0]}\"."];
         }
-        if (preg_match('/\b(better than|unlike|compared to|vs\.?)\s+[A-Z][\w]+/', $body, $m)) {
-            $flags[] = ['type' => 'unverified_comparison', 'severity' => 'medium', 'message' => "Competitor comparison needs evidence: \"{$m[0]}\"."];
+        // Only comparisons that name a known competitor need evidence ("vs. upselling" is a concept, not a rival).
+        foreach ($this->competitorNames($draft) as $name) {
+            if (preg_match('/\b(better than|unlike|compared (to|with)|vs\.?|versus|cheaper than|faster than)\s+'.preg_quote($name, '/').'\b/i', $body, $m)) {
+                $flags[] = ['type' => 'unverified_comparison', 'severity' => 'medium', 'message' => "Comparison with a competitor needs evidence: \"{$m[0]}\"."];
+                break;
+            }
         }
         if (Str::contains($body, '[needs human')) {
             $flags[] = ['type' => 'placeholder', 'severity' => 'medium', 'message' => 'Draft still contains placeholders marked for human detail.'];
@@ -33,7 +39,7 @@ class QualityChecker
             $density = $count * str_word_count($primaryKeyword) / $words;
             if ($density > 0.04) {
                 $flags[] = ['type' => 'keyword_stuffing', 'severity' => 'medium', 'message' => sprintf('Primary keyword appears %d times (%.1f%% of words). Read it aloud and reduce repetition.', $count, $density * 100)];
-            } elseif ($count === 0) {
+            } elseif ($count === 0 && ! $this->coversTopic($body, $primaryKeyword)) {
                 $flags[] = ['type' => 'keyword_missing', 'severity' => 'low', 'message' => 'The primary keyword does not appear. Mention the topic naturally where it fits.'];
             }
         }
@@ -45,6 +51,29 @@ class QualityChecker
         }
 
         return $flags;
+    }
+
+    /** Brand names of active competitors: "rival.com" -> "rival", "apps.shopify.com/fast-bundle" -> "fast bundle". */
+    private function competitorNames(ContentDraft $draft): array
+    {
+        return Competitor::forWebsite($draft->website_id)->where('active', true)->pluck('domain')
+            ->map(fn ($d) => str_contains($d, '/') ? str_replace('-', ' ', Str::afterLast($d, '/')) : Str::before($d, '.'))
+            ->filter(fn ($n) => mb_strlen($n) >= 3)->unique()->values()->all();
+    }
+
+    /** The topic is covered when its meaningful words all appear (hyphens and question wording ignored). */
+    private function coversTopic(string $body, string $keyword): bool
+    {
+        $text = ' '.Str::lower(str_replace(['-', '–'], ' ', strip_tags($body))).' ';
+        $words = array_filter(SiteProfile::words($keyword),
+            fn ($w) => ! in_array($w, ['what', 'is', 'are', 'how', 'to', 'the', 'a', 'an', 'in', 'on', 'for', 'of', 'and', 'or', 'does', 'do', 'can', 'why', 'best'], true));
+        foreach ($words as $w) {
+            if (! str_contains($text, ' '.rtrim($w, 's'))) {
+                return false;
+            }
+        }
+
+        return $words !== [];
     }
 
     /** Jaccard similarity on word 3-shingles against crawled page excerpts. */
