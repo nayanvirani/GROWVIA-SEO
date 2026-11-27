@@ -63,6 +63,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('content/drafts/{draft}', [Web\ContentController::class, 'edit'])->name('content.drafts.edit');
         Route::patch('content/drafts/{draft}', [Web\ContentController::class, 'update'])->name('content.drafts.update');
         Route::post('content/drafts/{draft}/approve', [Web\ContentController::class, 'approve'])->name('content.drafts.approve');
+        Route::post('content/drafts/{draft}/published', [Web\ContentController::class, 'published'])->name('content.drafts.published');
         Route::get('content/drafts/{draft}/export', [Web\ContentController::class, 'export'])->name('content.drafts.export');
 
         Route::get('images', [Web\ImageController::class, 'index'])->name('images.index');

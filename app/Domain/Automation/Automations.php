@@ -5,6 +5,7 @@ namespace App\Domain\Automation;
 use App\Domain\Backlink\BacklinkDiscovery;
 use App\Domain\Backlink\BrandMentions;
 use App\Domain\Backlink\ListingKit;
+use App\Domain\Content\PublishChecker;
 use App\Domain\Crawl\CrawlService;
 use App\Domain\Keyword\KeywordResearchService;
 use App\Jobs\RunAutomation;
@@ -27,6 +28,7 @@ class Automations
         private readonly BacklinkDiscovery $discovery,
         private readonly BrandMentions $mentions,
         private readonly ListingKit $listings,
+        private readonly PublishChecker $published,
     ) {}
 
     public function execute(Website $website, string $key, string $trigger = 'schedule')
@@ -42,6 +44,7 @@ class Automations
             'backlink_discovery' => $this->discovery->discover($w),
             'brand_mentions' => $this->mentions->find($w),
             'listing_check' => $this->listings->verifyAll($w),
+            'published_check' => $this->published->recheckAll($w),
             'critical_issue_recheck' => $this->recheckCritical($w),
             'weekly_digest' => $this->digest($w),
             'stale_draft_reminder' => $this->staleDrafts($w),
@@ -87,6 +90,9 @@ class Automations
         }
         if ($force || ! $recent('listing_check')) {
             $jobs[] = new RunAutomation($w->id, 'listing_check', 'autopilot');
+        }
+        if ($w->contentDrafts()->whereNotNull('published_url')->exists()) {
+            $jobs[] = new RunAutomation($w->id, 'published_check', 'autopilot'); // after every crawl: link suggestions shrink as links are added
         }
         if ($jobs) {
             Bus::chain($jobs)->onQueue('low')->dispatch();

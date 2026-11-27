@@ -23,6 +23,8 @@ class AutomationRunner
             'help' => 'Finds pages that mention your brand without linking to you and drafts a short request.'],
         'listing_check' => ['label' => 'Listing check', 'schedule' => 'Weekly with autopilot',
             'help' => 'Checks that your directory listings are live and link back to your website.'],
+        'published_check' => ['label' => 'Published article check', 'schedule' => 'After each crawl',
+            'help' => 'Re-checks your published articles and updates which pages should link to them.'],
         'critical_issue_recheck' => ['label' => 'Broken page recheck', 'schedule' => 'Daily 03:00',
             'help' => 'Re-checks broken pages and links between full crawls.'],
         'weekly_digest' => ['label' => 'Weekly summary', 'schedule' => 'Weekly (Mon 08:00)',

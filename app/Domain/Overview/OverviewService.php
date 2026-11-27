@@ -82,6 +82,15 @@ class OverviewService
         if ($ideas = $w->contentBriefs()->where('status', ContentStatus::Idea->value)->count()) {
             $add("{$ideas} article idea(s) are ready to write", 'Autopilot picked topics people search for that your site does not cover yet. Click "Generate draft".', 'content.index', 'medium');
         }
+        $toPublish = $w->contentDrafts()->whereIn('status', [ContentStatus::ApprovedForExport->value, ContentStatus::Exported->value])->whereNull('published_url')->first();
+        if ($toPublish) {
+            $add("Publish \"{$toPublish->title}\" on your blog", 'It is approved. Download it, publish it, then paste the post link in the draft so the app can check it.', 'content.index', 'high');
+        }
+        $linkWork = $w->contentDrafts()->whereNotNull('published_url')->get()
+            ->sum(fn ($d) => count($d->publish_check_json['link_suggestions'] ?? []));
+        if ($linkWork) {
+            $add("Add {$linkWork} link(s) to your new articles from your other pages", 'Links from your own pages help Google find and rank new articles. Each suggestion shows the page and the text to link.', 'content.index', 'medium');
+        }
         if ($ready = $w->backlinkProspects()->where('status', 'discovered')->whereHas('outreachDrafts', fn ($q) => $q->where('status', '!=', 'discarded'))->count()) {
             $add("Send {$ready} outreach message(s)", 'These sites list tools like yours. Personalise the drafted message and send it from your own email.', 'backlinks.index', 'medium');
         }

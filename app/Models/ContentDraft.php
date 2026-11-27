@@ -23,6 +23,8 @@ class ContentDraft extends Model
         'source_pages_json' => 'array',
         'approved_at' => 'datetime',
         'exported_at' => 'datetime',
+        'publish_checked_at' => 'datetime',
+        'publish_check_json' => 'array',
     ];
 
     public function brief(): BelongsTo

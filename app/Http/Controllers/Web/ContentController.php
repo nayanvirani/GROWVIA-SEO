@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Domain\Content\ContentService;
+use App\Domain\Content\PublishChecker;
 use App\Http\Controllers\Controller;
 use App\Models\ContentBrief;
 use App\Models\ContentDraft;
@@ -111,6 +112,19 @@ class ContentController extends Controller
             'Content-Type' => $file['mime'].'; charset=utf-8',
             'Content-Disposition' => 'attachment; filename="'.$file['filename'].'"',
         ]);
+    }
+
+    /** The owner published the article on their site: check it and find pages that should link to it. */
+    public function published(Request $request, Website $website, ContentDraft $draft, PublishChecker $checker): RedirectResponse
+    {
+        $this->authorize('update', $draft);
+        $data = $request->validate(['url' => ['required', 'url:http,https', 'max:2048']]);
+        $draft = $checker->check($draft, $data['url']);
+        $problems = collect($draft->publish_check_json['checks'] ?? [])->where('state', '!=', 'ok')->count();
+
+        return back()->with($problems ? 'error' : 'success', $problems
+            ? "Checked your post: {$problems} thing(s) to fix below."
+            : 'Your post looks good. Now add the suggested links from your other pages.');
     }
 
     public function metaSuggestions(Website $website, WebsitePage $page): RedirectResponse
