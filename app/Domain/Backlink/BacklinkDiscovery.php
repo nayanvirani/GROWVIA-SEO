@@ -28,7 +28,7 @@ class BacklinkDiscovery
     /** Platforms where you cannot earn an editorial link, or where link building is spam. */
     private const SKIP_DOMAINS = ['google.', 'youtube.com', 'facebook.com', 'twitter.com', 'x.com', 'linkedin.com', 'instagram.com',
         'pinterest.', 'tiktok.com', 'wikipedia.org', 'amazon.', 'reddit.com', 'quora.com', 'github.com', 'apple.com',
-        'apps.shopify.com', 'shopify.com', 'shopify.dev', 'help.shopify.com', 'community.shopify.com', 'developer.mozilla.org', 'support.google.com', 'bing.com', 'duckduckgo.com', 'yahoo.com', 'trustpilot.com',
+        'apps.shopify.com', 'shopify.com', 'shopify.dev', 'help.shopify.com', 'community.shopify.com', 'developer.mozilla.org', 'support.google.com', 'bing.com', 'duckduckgo.com', 'yahoo.com', 'tavily.com', 'mojeek.com', 'searx.', 'trustpilot.com',
         'g2.com', 'capterra.com', 'wordpress.org', 'medium.com', 'substack.com', 'w3.org', 'schema.org', 'cloudflare.com', 'gstatic.com'];
 
     /** App stores: a listing URL identifies a competing product (apps.shopify.com/<app>). */

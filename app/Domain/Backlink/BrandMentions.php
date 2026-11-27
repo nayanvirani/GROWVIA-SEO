@@ -61,11 +61,8 @@ class BrandMentions
             if (! preg_match('/.{0,120}\b'.preg_quote($brand, '/').'\b.{0,120}/iu', $text, $m)) {
                 continue; // search result without a real mention
             }
-            // Other companies can share the name: require a topic word from this site nearby.
-            $topicWords = array_slice(array_keys($profile->tokens), 0, 40);
-            $about = $profile->context && stripos($text, $profile->context) !== false
-                || collect($topicWords)->contains(fn ($w) => stripos($text, $w) !== false);
-            if (! $about) {
+            // Other companies can share the name: make sure the mention is about THIS business.
+            if (! $this->isAboutUs($website, $profile, $res['final_url'], $text, $res['html'])) {
                 continue;
             }
 
@@ -100,6 +97,44 @@ class BrandMentions
         ActivityLogger::log($website, 'backlinks.mentions', null, compact('checked', 'mentions', 'linked'));
 
         return ['queries' => count($queries), 'pages_checked' => $checked, 'unlinked_mentions' => $mentions, 'already_linked' => $linked, 'errors' => $errors];
+    }
+
+    private const GENERIC = ['growth', 'free', 'sales', 'sale', 'store', 'stores', 'shop', 'business', 'marketing', 'tools', 'online',
+        'ecommerce', 'best', 'guide', 'platform', 'services', 'digital', 'brand', 'customer', 'customers'];
+
+    /**
+     * A mention counts only when it is not on a same-named company's own site, the page talks about
+     * the site's platform (e.g. Shopify), and a core topic word appears near the brand name, or the
+     * page refers to our domain.
+     */
+    public function isAboutUs(Website $website, SiteProfile $profile, string $url, string $text, string $html): bool
+    {
+        $brand = Str::lower(preg_replace('/[^\p{L}\p{N}]+/u', '', $website->name));
+        $host = rescue(fn () => Url::host($url), '', false);
+        if ($brand !== '' && str_contains(str_replace(['-', '.'], '', $host), $brand)) {
+            return false; // e.g. growviagroup.com: a different business with the same name
+        }
+        if (stripos($html, $website->normalized_host) !== false) {
+            return true; // refers to our domain
+        }
+        if ($profile->context && stripos($text, $profile->context) === false) {
+            return false;
+        }
+        $core = collect($profile->phrases)->take(8)
+            ->flatMap(fn ($p) => SiteProfile::words($p))
+            ->reject(fn ($w) => $w === $profile->context || mb_strlen($w) < 4 || in_array($w, SiteProfile::STOPWORDS, true) || in_array($w, self::GENERIC, true))
+            ->map(fn ($w) => preg_replace('/(ies|s)$/', '', $w))->unique()->values();
+        if ($core->isEmpty()) {
+            return true;
+        }
+        preg_match_all('/.{0,250}\b'.preg_quote($website->name, '/').'\b.{0,250}/iu', $text, $windows);
+        foreach ($windows[0] as $window) {
+            if ($core->contains(fn ($w) => stripos($window, $w) !== false)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function title(string $html): ?string

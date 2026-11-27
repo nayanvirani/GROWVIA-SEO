@@ -104,9 +104,13 @@ class ListingTest extends TestCase
                 .$result('https://blog.example.com/apps-we-love', 'Apps we love')
                 .$result('https://news.example.org/growvia-review', 'Growvia review')
                 .$result('https://other.example.net/growvia-farm', 'Growvia farm co-op')
+                .$result('https://growviagroup.example.com/about', 'Growvia Group')
+                .$result('https://agency.example.com/team', 'Our partners')
                 .$result('https://www.facebook.com/growvia', 'Facebook').'</table>'),
             'blog.example.com/*' => Http::response('<html><title>Apps we love</title><p>We use Growvia for Shopify bundles and it works.</p></html>', 200, ['Content-Type' => 'text/html']),
             'news.example.org/*' => Http::response('<html><title>Growvia review</title><p>Growvia adds Shopify upsells. <a href="https://site.test/">site</a></p></html>', 200, ['Content-Type' => 'text/html']),
+            'growviagroup.example.com/*' => Http::response('<html><title>Growvia Group</title><p>Growvia Group builds Shopify bundles for clients.</p></html>', 200, ['Content-Type' => 'text/html']),
+            'agency.example.com/*' => Http::response('<html><title>Partners</title><p>We work with Growvia on growth. Shopify is our platform. Unrelated text about our accounting services here.</p></html>', 200, ['Content-Type' => 'text/html']),
             'other.example.net/*' => Http::response('<html><title>Farm</title><p>The Growvia farm grows vegetables.</p></html>', 200, ['Content-Type' => 'text/html']),
         ]);
 
@@ -119,6 +123,8 @@ class ListingTest extends TestCase
         $this->assertStringContainsString('Growvia for Shopify bundles', $mention->evidence_json['mention']);
         $this->assertStringContainsString('Thank you for mentioning', $mention->outreachDrafts()->first()->body);
         $this->assertSame(0, BacklinkProspect::where('source_domain', 'other.example.net')->count(), 'same name, different business');
+        $this->assertSame(0, BacklinkProspect::where('source_domain', 'growviagroup.example.com')->count(), 'site named after the brand is another company');
+        $this->assertSame(0, BacklinkProspect::where('source_domain', 'agency.example.com')->count(), 'no core topic near the mention');
         $this->assertSame(0, BacklinkProspect::where('source_domain', 'facebook.com')->count());
         $this->assertSame(1, $website->backlinks()->count());
     }
