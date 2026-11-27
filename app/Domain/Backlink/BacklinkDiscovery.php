@@ -123,7 +123,8 @@ class BacklinkDiscovery
         foreach ($inspected as $c) {
             $f = $c['facts'];
             $linkedCompetitors = array_values(array_intersect($f['linked'], $competitors));
-            $owned = in_array($c['host'], $competitors, true) || in_array(Url::host($f['final_url']), $competitors, true);
+            $owned = in_array($c['host'], $competitors, true) || in_array(Url::host($f['final_url']), $competitors, true)
+                || self::ownsListing($c['host'], $f['linked']);
 
             $prospect = $this->backlinks->upsertProspect($website, [
                 'source_url' => $f['final_url'],
@@ -157,6 +158,7 @@ class BacklinkDiscovery
             }
         }
 
+        $this->reflagCompetitorOwned($website);
         $drafted = $this->draftOutreach($website);
         $resume = $errors && $done < count($queries) ? $this->scheduleResume($website) : false;
         ActivityLogger::log($website, 'backlinks.discovered', null, compact('done', 'saved', 'alreadyLinking', 'drafted'));
@@ -167,6 +169,41 @@ class BacklinkDiscovery
             'competitors' => $website->competitors()->where('active', true)->where('source', 'autopilot')->pluck('domain')->all(),
             'errors' => $errors, 'will_resume' => $resume,
         ];
+    }
+
+    /**
+     * A vendor's own blog links to its own app-store listing: kachingappz.com -> apps.shopify.com/kaching-bundles,
+     * bundler.app -> apps.shopify.com/bundler-product-bundles. Those blogs rarely recommend rivals.
+     */
+    public static function ownsListing(string $host, array $linkedIdentities): bool
+    {
+        $label = Str::lower(explode('.', preg_replace('/^(www|blog|apps?)\./', '', $host))[0] ?? '');
+        foreach ($linkedIdentities as $id) {
+            if (! str_contains($id, '/')) {
+                continue;
+            }
+            $first = explode('-', Str::afterLast($id, '/'))[0];
+            if (mb_strlen($first) >= 4 && str_starts_with($label, $first)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Re-apply the competitor-owned flag to saved prospects (uses the links recorded when they were checked). */
+    public function reflagCompetitorOwned(Website $website): int
+    {
+        $flagged = 0;
+        foreach ($website->backlinkProspects()->where('discovery_source', 'autopilot')->get() as $p) {
+            $flags = $p->risk_flags_json ?? [];
+            if (! in_array('competitor_owned', $flags, true) && self::ownsListing($p->source_domain, $p->evidence_json['competitors_linked'] ?? [])) {
+                $p->update(['risk_flags_json' => [...$flags, 'competitor_owned'], 'score' => max(0, $p->score - 15)]);
+                $flagged++;
+            }
+        }
+
+        return $flagged;
     }
 
     /** @return list<string> */
