@@ -3,6 +3,7 @@
 namespace App\Domain\Content;
 
 use App\Domain\AI\AiService;
+use App\Jobs\GenerateContentDraft;
 use App\Models\ContentBrief;
 use App\Models\ContentDraft;
 use App\Models\ImageAsset;
@@ -34,6 +35,23 @@ class ContentService
         ActivityLogger::log($website, 'brief.created', $brief);
 
         return $brief;
+    }
+
+    /**
+     * Queue AI drafting once: refuses while a draft is being written, and asks for confirmation
+     * before creating another version of a brief that already has one.
+     */
+    public function queueGeneration(ContentBrief $brief, bool $confirmed): void
+    {
+        if ($brief->status === 'generating' && $brief->updated_at->gt(now()->subMinutes(15))) {
+            throw ValidationException::withMessages(['brief' => 'A draft for this brief is already being written. It appears in Drafts when ready.']);
+        }
+        $existing = $brief->drafts()->where('status', '!=', ContentStatus::Rejected->value)->count();
+        if ($existing > 0 && ! $confirmed) {
+            throw ValidationException::withMessages(['brief' => "This brief already has {$existing} draft(s). Confirm to create another version."]);
+        }
+        $brief->update(['status' => 'generating', 'last_error' => null]);
+        GenerateContentDraft::dispatch($brief->id);
     }
 
     /** AI outline for a brief (IDEA -> BRIEF_DRAFT). */

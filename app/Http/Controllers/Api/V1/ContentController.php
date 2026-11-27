@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Content\ContentService;
-use App\Jobs\GenerateContentDraft;
 use App\Models\ContentBrief;
 use App\Models\ContentDraft;
 use App\Models\Website;
@@ -32,11 +31,10 @@ class ContentController extends ApiController
         return $this->ok($this->content->createBrief($website, $data), 201);
     }
 
-    public function generate(ContentBrief $brief): JsonResponse
+    public function generate(Request $request, ContentBrief $brief): JsonResponse
     {
         $this->authorize('update', $brief);
-        $brief->update(['status' => 'generating']);
-        GenerateContentDraft::dispatch($brief->id);
+        $this->content->queueGeneration($brief, $request->boolean('confirm'));
 
         return $this->ok(['brief_id' => $brief->id, 'status' => 'queued'], 202);
     }

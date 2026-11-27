@@ -101,4 +101,23 @@ class ContentWorkflowTest extends TestCase
         $this->assertContains('unverified_comparison', $check('Our app is better than Rival for shopify bundles.', 'shopify bundles'));
         $this->assertContains('keyword_missing', $check('Nothing about the topic here at all.', 'shopify bundles'));
     }
+
+    public function test_generating_twice_needs_confirmation_and_running_jobs_are_not_duplicated()
+    {
+        [$user, $website] = $this->userWithWebsite();
+        $brief = $website->contentBriefs()->create(['title' => 'Shopify bundles guide', 'status' => 'idea']);
+
+        $this->actingAs($user)->post(route('content.briefs.generate', [$website, $brief]))->assertSessionHasNoErrors();
+        $this->assertSame(1, $brief->drafts()->count());
+
+        $this->actingAs($user)->post(route('content.briefs.generate', [$website, $brief]))->assertSessionHasErrors('brief');
+        $this->assertSame(1, $brief->drafts()->count(), 'no accidental second version');
+
+        $this->actingAs($user)->post(route('content.briefs.generate', [$website, $brief]), ['confirm' => true])->assertSessionHasNoErrors();
+        $this->assertSame(2, $brief->drafts()->count());
+
+        $brief->update(['status' => 'generating']);
+        $this->actingAs($user)->post(route('content.briefs.generate', [$website, $brief]), ['confirm' => true])
+            ->assertSessionHasErrors(['brief' => 'A draft for this brief is already being written. It appears in Drafts when ready.']);
+    }
 }

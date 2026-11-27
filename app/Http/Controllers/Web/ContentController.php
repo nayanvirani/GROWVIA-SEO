@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Web;
 
 use App\Domain\Content\ContentService;
 use App\Http\Controllers\Controller;
-use App\Jobs\GenerateContentDraft;
 use App\Models\ContentBrief;
 use App\Models\ContentDraft;
 use App\Models\Website;
@@ -49,11 +48,10 @@ class ContentController extends Controller
         return back()->with('success', 'Brief created. Generate a draft when ready.');
     }
 
-    public function generate(Website $website, ContentBrief $brief): RedirectResponse
+    public function generate(Request $request, Website $website, ContentBrief $brief): RedirectResponse
     {
         $this->authorize('update', $brief);
-        $brief->update(['status' => 'generating']);
-        GenerateContentDraft::dispatch($brief->id);
+        $this->content->queueGeneration($brief, $request->boolean('confirm'));
 
         return back()->with('success', 'Draft generation queued. It will appear in Drafts when ready.');
     }

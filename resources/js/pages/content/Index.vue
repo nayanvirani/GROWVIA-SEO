@@ -35,7 +35,10 @@ const form = useForm({
     source_notes: '',
 });
 const create = () => form.post(route('content.briefs.store', w.value.id), { preserveScroll: true, onSuccess: () => form.reset() });
-const generate = (b: any) => router.post(route('content.briefs.generate', [w.value.id, b.id]), {}, { preserveScroll: true });
+const generate = (b: any) => {
+    if (b.drafts_count > 0 && !confirm(`"${b.title}" already has ${b.drafts_count} draft(s). Create another version?`)) return;
+    router.post(route('content.briefs.generate', [w.value.id, b.id]), { confirm: b.drafts_count > 0 }, { preserveScroll: true });
+};
 const destroy = (b: any) =>
     confirm('Delete this brief?') && router.delete(route('content.briefs.destroy', [w.value.id, b.id]), { preserveScroll: true });
 
