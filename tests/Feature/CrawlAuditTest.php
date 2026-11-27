@@ -118,4 +118,21 @@ class CrawlAuditTest extends TestCase
             ->assertInertia(fn ($p) => $p->where('pages.total', 1));
         $this->actingAs($user)->get(route('audit.page', [$website, $issue->page_id]))->assertOk();
     }
+
+    public function test_flags_blocked_ai_search_assistants_from_robots_txt()
+    {
+        [$user, $website] = $this->userWithWebsite();
+        Http::fake([
+            'crawler.test/internal/v1/crawls' => Http::response(['crawl_id' => 'crawl_1', 'status' => 'accepted'], 202),
+            'crawler.test/internal/v1/crawls/crawl_1/results*' => Http::response(['status' => 'completed', 'pages' => [$this->crawledPage('/')],
+                'next_cursor' => 1, 'done' => true, 'errors' => [], 'sitemaps' => ['https://site.test/sitemap.xml'], 'pages_found' => 1]),
+            'site.test/robots.txt' => Http::response("User-agent: GPTBot\nUser-agent: OAI-SearchBot\nDisallow: /\n", 200, ['Content-Type' => 'text/plain']),
+        ]);
+        $this->actingAs($user)->post(route('audit.crawl', $website));
+
+        $issue = SeoIssue::where('rule_key', 'ai_search_blocked')->first();
+        $this->assertNotNull($issue);
+        $this->assertSame(['OAI-SearchBot'], $issue->evidence_json['blocked_search_bots']);
+        $this->assertSame('low', $issue->severity);
+    }
 }

@@ -5,7 +5,9 @@ namespace App\Domain\Audit;
 use App\Models\CrawlRun;
 use App\Models\PageLink;
 use App\Models\SeoIssue;
+use App\Models\Website;
 use App\Models\WebsitePage;
+use App\Support\Security\SafeFetcher;
 use App\Support\Url;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -33,6 +35,10 @@ class AuditEngine
         $this->duplicates($indexable, 'title', 'duplicate_title');
         $this->duplicates($indexable, 'meta_description', 'duplicate_meta_description');
         $this->linkRules($run, $byHash);
+
+        if ($root = $pages->firstWhere('depth', 0)) {
+            $this->aiSearchRule($run->website, $root);
+        }
 
         if (empty($run->fresh()->sitemaps_json) && $root = $pages->firstWhere('depth', 0)) {
             $this->add('missing_sitemap', $root, ['checked' => ['robots.txt Sitemap directives', '/sitemap.xml']]);
@@ -105,6 +111,57 @@ class AuditEngine
         if ($page->word_count < $cfg['thin_content_words'] && ! str_contains($robots, 'noindex')) {
             $this->add('thin_content_signal', $page, ['word_count' => $page->word_count, 'reviewed_below' => $cfg['thin_content_words'].' words (heuristic)']);
         }
+    }
+
+    /** Bots that fetch pages to answer a user's question or show search results (not training crawlers). */
+    public const AI_SEARCH_AGENTS = ['OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot', 'Perplexity-User', 'Claude-SearchBot',
+        'Claude-User', 'DuckAssistBot', 'MistralAI-User', 'YouBot'];
+
+    private function aiSearchRule(Website $website, WebsitePage $root): void
+    {
+        $res = SafeFetcher::get(rtrim($website->base_url, '/').'/robots.txt');
+        $text = $res['status'] === 200 ? $res['body'] : null;
+        if (! $text) {
+            return;
+        }
+        $blocked = self::blockedAgents($text, self::AI_SEARCH_AGENTS);
+        if ($blocked) {
+            $this->add('ai_search_blocked', $root, ['blocked_search_bots' => $blocked, 'robots_txt' => rtrim($website->base_url, '/').'/robots.txt']);
+        }
+    }
+
+    /** Agents (from $agents) whose robots.txt group disallows the whole site. */
+    public static function blockedAgents(string $robots, array $agents): array
+    {
+        $groups = [];
+        $current = [];
+        $inRules = false;
+        foreach (preg_split('/\r?\n/', $robots) as $line) {
+            $line = trim(preg_replace('/#.*$/', '', $line));
+            if ($line === '' || ! str_contains($line, ':')) {
+                continue;
+            }
+            [$key, $value] = array_map('trim', explode(':', $line, 2));
+            $key = strtolower($key);
+            if ($key === 'user-agent') {
+                if ($inRules) {
+                    $current = [];
+                    $inRules = false;
+                }
+                $current[] = strtolower($value);
+            } elseif (in_array($key, ['disallow', 'allow'], true)) {
+                $inRules = true;
+                foreach ($current as $ua) {
+                    $groups[$ua][] = [$key, $value];
+                }
+            }
+        }
+
+        return array_values(array_filter($agents, function ($agent) use ($groups) {
+            $rules = $groups[strtolower($agent)] ?? null;
+
+            return $rules && in_array(['disallow', '/'], $rules, true) && ! collect($rules)->contains(fn ($r) => $r[0] === 'allow' && $r[1] === '/');
+        }));
     }
 
     private function duplicates(Collection $pages, string $field, string $rule): void

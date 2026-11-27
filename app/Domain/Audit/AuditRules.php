@@ -89,6 +89,11 @@ final class AuditRules
             'why' => 'Pages that return 4xx/5xx errors cannot be shown to visitors or indexed.',
             'recommendation' => 'Check whether the URL is intentionally unavailable.',
         ],
+        'ai_search_blocked' => [
+            'severity' => 'low', 'heuristic' => true, 'label' => 'AI search assistants are blocked',
+            'why' => 'Shoppers increasingly ask AI assistants (ChatGPT search, Perplexity and others) which app to use. If robots.txt blocks their search bots, they cannot read or recommend your pages.',
+            'recommendation' => 'Allow the AI search/answer bots listed in the evidence. Bots used only for AI training can stay blocked. This is a business choice, not a ranking requirement.',
+        ],
         'missing_sitemap' => [
             'severity' => 'low', 'heuristic' => false, 'label' => 'No XML sitemap found',
             'why' => 'A sitemap helps search engines discover all important pages, especially new ones.',

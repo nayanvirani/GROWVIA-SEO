@@ -19,7 +19,7 @@ final class SafeFetcher
     {
         for ($hop = 0; $hop <= $maxRedirects; $hop++) {
             if (! HostGuard::isAllowedUrl($url, resolve: ! app()->runningUnitTests())) {
-                return ['status' => null, 'final_url' => $url, 'html' => null, 'error' => 'Blocked: not a public website'];
+                return ['status' => null, 'final_url' => $url, 'html' => null, 'body' => null, 'error' => 'Blocked: not a public website'];
             }
             try {
                 $response = Http::timeout(15)->connectTimeout(8)
@@ -30,23 +30,26 @@ final class SafeFetcher
                         }
                     }])->get($url);
             } catch (\Throwable $e) {
-                return ['status' => null, 'final_url' => $url, 'html' => null, 'error' => mb_substr($e->getMessage(), 0, 200)];
+                return ['status' => null, 'final_url' => $url, 'html' => null, 'body' => null, 'error' => mb_substr($e->getMessage(), 0, 200)];
             }
             if ($response->redirect() && $location = $response->header('Location')) {
                 $url = (string) UriResolver::resolve(new Uri($url), new Uri($location));
 
                 continue;
             }
-            $isHtml = str_contains(strtolower($response->header('Content-Type')), 'html');
+            $type = strtolower($response->header('Content-Type'));
+            $isHtml = str_contains($type, 'html');
+            $isText = $isHtml || str_starts_with($type, 'text/') || str_contains($type, 'xml') || str_contains($type, 'json');
 
             return [
                 'status' => $response->status(),
                 'final_url' => $url,
                 'html' => $isHtml ? mb_substr($response->body(), 0, self::MAX_BYTES) : null,
+                'body' => $isText ? mb_substr($response->body(), 0, self::MAX_BYTES) : null,
                 'error' => $isHtml ? null : 'Not an HTML page',
             ];
         }
 
-        return ['status' => null, 'final_url' => $url, 'html' => null, 'error' => 'Too many redirects'];
+        return ['status' => null, 'final_url' => $url, 'html' => null, 'body' => null, 'error' => 'Too many redirects'];
     }
 }
