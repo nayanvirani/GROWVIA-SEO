@@ -14,6 +14,8 @@ use RuntimeException;
  */
 class OpenAiCompatibleProvider implements AiContentProvider
 {
+    private const LONG_TASKS = ['blog_draft', 'landing_page', 'content_brief', 'listing_pack'];
+
     /** @param array{name: string, base_url: string, api_key: ?string, model: ?string, max_output_tokens?: int} $config */
     public function __construct(private readonly array $config) {}
 
@@ -42,10 +44,12 @@ class OpenAiCompatibleProvider implements AiContentProvider
             ],
         ];
 
-        $response = $this->post('/chat/completions', $payload);
+        // Long articles need time; short tasks (outreach, intent, relevance) should fail fast.
+        $timeout = in_array($task, self::LONG_TASKS, true) ? 180 : 60;
+        $response = $this->post('/chat/completions', $payload, $timeout);
         if ($response->status() === 400 && str_contains(strtolower($response->body()), 'response_format')) {
             unset($payload['response_format']); // provider/model without JSON mode
-            $response = $this->post('/chat/completions', $payload);
+            $response = $this->post('/chat/completions', $payload, $timeout);
         }
         $this->throwIfFailed($response);
 
@@ -109,9 +113,9 @@ class OpenAiCompatibleProvider implements AiContentProvider
     }
 
     /** Free tiers are often briefly overloaded (502/503/529): wait and retry before giving up. */
-    private function post(string $path, array $payload): Response
+    private function post(string $path, array $payload, int $timeout = 180): Response
     {
-        return $this->http()->timeout(180)
+        return $this->http()->timeout($timeout)
             ->retry(3, fn (int $attempt) => $attempt * 4000, fn ($e) => $e instanceof RequestException
                 && in_array($e->response->status(), [500, 502, 503, 504, 529], true), throw: false)
             ->post($this->url($path), $payload);

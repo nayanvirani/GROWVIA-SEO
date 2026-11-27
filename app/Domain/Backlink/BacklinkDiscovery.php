@@ -2,6 +2,7 @@
 
 namespace App\Domain\Backlink;
 
+use App\Jobs\DraftOutreach;
 use App\Jobs\RunAutomation;
 use App\Models\Keyword;
 use App\Models\Website;
@@ -291,14 +292,11 @@ class BacklinkDiscovery
         $prospects = $website->backlinkProspects()->where('status', 'discovered')->where('score', '>=', 35)
             ->whereDoesntHave('outreachDrafts')->orderByDesc('score')->limit($limit)->get()
             ->reject(fn ($p) => in_array('competitor_owned', $p->risk_flags_json ?? [], true));
-        $count = 0;
         foreach ($prospects as $p) {
-            if (rescue(fn () => $this->backlinks->outreachDraft($p), null, false)) {
-                $count++;
-            }
+            DraftOutreach::dispatch($p->id); // written in the background; appears in Backlinks when ready
         }
 
-        return $count;
+        return $prospects->count();
     }
 
     /** Search was throttled: continue later (cached results make each retry progress). */

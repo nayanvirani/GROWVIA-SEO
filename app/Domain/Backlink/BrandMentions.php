@@ -3,6 +3,7 @@
 namespace App\Domain\Backlink;
 
 use App\Domain\Keyword\SiteProfile;
+use App\Jobs\DraftOutreach;
 use App\Models\Website;
 use App\Providers\Search\SearchProviderFactory;
 use App\Support\ActivityLogger;
@@ -92,7 +93,7 @@ class BrandMentions
             } else {
                 $mentions++;
                 if (! $prospect->outreachDrafts()->exists()) {
-                    rescue(fn () => $this->backlinks->outreachDraft($prospect), null, false);
+                    DraftOutreach::dispatch($prospect->id);
                 }
             }
         }
