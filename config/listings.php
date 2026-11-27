@@ -18,7 +18,13 @@ return [
         'url' => 'https://sell.g2.com',
         'priority' => 2, 'minutes' => 15, 'verify' => false,
         'why' => 'The biggest software review site. Buyers compare tools here.',
-        'steps' => ['Click "Get a free profile" and sign up with your work email.', 'Add a product, then paste the fields below.', 'Ask 2–3 happy customers for a review.'],
+        'steps' => [
+            'Open sell.g2.com (the seller side) and choose the free profile option.',
+            'If G2 instead asks "Select the products you use at work", that is the reviewer sign-up: click Continue to skip it, then go back to sell.g2.com.',
+            'G2 may require an email on your own domain to prove you own the product; Gmail can be refused. If so, do SaaSHub or AlternativeTo first.',
+            'Add Growvia as a product and paste the fields below.',
+            'Ask 2–3 happy customers for a review.',
+        ],
     ],
     'capterra' => [
         'name' => 'Capterra (also lists you on GetApp & Software Advice)',
