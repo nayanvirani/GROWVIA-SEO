@@ -54,7 +54,16 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#c4b5fd,#fb7185,#fdba74,#86efac\" \"php artisan queue:work --queue=high,crawl,ai,default,low --tries=3\" \"php artisan schedule:work\" \"npm run dev\" \"cd crawler-service && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8100\" --names=queue,scheduler,vite,crawler"
+            "npm run dev"
+        ],
+        "services:install": [
+            "bash deploy/local/install-services.sh"
+        ],
+        "services:status": [
+            "systemctl --user --no-pager status growvia-queue growvia-scheduler growvia-crawler"
+        ],
+        "services:restart": [
+            "systemctl --user restart growvia-queue growvia-scheduler growvia-crawler"
         ]
     },
     "extra": {

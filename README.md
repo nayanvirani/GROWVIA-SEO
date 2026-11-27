@@ -41,11 +41,17 @@ cd ..
 sudo deploy/local/setup-vhost.sh
 ```
 
-Run the background processes (queue worker, scheduler, Vite, crawler) in one terminal:
+Install the background services once (queue worker, scheduler, crawler). They are systemd *user*
+services: no sudo, they start at boot/login and restart themselves if they stop:
 
 ```bash
-composer dev
+composer services:install    # or: bash deploy/local/install-services.sh
+composer services:status
+composer services:restart    # after changing PHP code
+journalctl --user -u growvia-queue -f   # logs
 ```
+
+`composer dev` now only runs Vite live-reload, needed only while editing the frontend.
 
 Open http://growvia-seo.test and log in as `admin@growvia.test` / `password`.
 Confirm ownership in **Website Settings** before the first crawl.

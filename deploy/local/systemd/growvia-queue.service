@@ -1,0 +1,12 @@
+[Unit]
+Description=Growvia SEO queue worker (crawls, AI drafts, autopilot)
+After=network-online.target
+
+[Service]
+WorkingDirectory=__PROJECT__
+ExecStart=/usr/bin/php artisan queue:work --queue=high,crawl,ai,default,low --tries=3 --max-time=3600 --sleep=3
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

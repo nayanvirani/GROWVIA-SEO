@@ -1,0 +1,12 @@
+[Unit]
+Description=Growvia SEO scheduler (weekly autopilot, daily checks)
+After=network-online.target
+
+[Service]
+WorkingDirectory=__PROJECT__
+ExecStart=/usr/bin/php artisan schedule:work
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
