@@ -20,7 +20,6 @@ const readAll = () => router.post(route('notifications.read-all'), {}, { preserv
         description="Crawl results, drafts ready for review, weekly digests and reminders for every website in your workspace."
     >
         <template #actions>
-            <Link :href="route('notifications.preferences')"><Button variant="ghost">Email preferences</Button></Link>
             <Button variant="outline" @click="readAll">Mark all read</Button>
         </template>
         <Panel>

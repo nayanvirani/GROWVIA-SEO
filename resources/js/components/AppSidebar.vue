@@ -4,7 +4,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Activity, FileText, Gauge, Image, KeyRound, Link2, Plug, Plus, Search, Settings2, Workflow } from 'lucide-vue-next';
+import { Activity, FileText, Gauge, Image, KeyRound, Link2, Plug, Plus, Search, Settings2, Users, Workflow } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
