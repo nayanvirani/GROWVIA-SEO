@@ -39,6 +39,7 @@ TXT;
         'seed_topics' => ['seeds'],
         'relevance_check' => ['results'],
         'listing_pack' => ['tagline', 'short_description', 'long_description'],
+        'page_update' => ['summary'],
     ];
 
     public function __construct(private readonly AiProviderFactory $providers) {}

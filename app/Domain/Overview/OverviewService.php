@@ -93,6 +93,10 @@ class OverviewService
         if ($high = $w->issues()->where('status', 'open')->where('severity', 'high')->count()) {
             $add("Fix {$high} important website problem(s)", 'These can stop pages from appearing in Google. Each one explains exactly what to change.', 'audit.index', 'high');
         }
+        $recs = $w->recommendations()->where('status', 'open')->whereIn('priority', ['high', 'medium'])->count();
+        if ($recs) {
+            $add("{$recs} suggested update(s) for your website", 'Specific changes to pages, plus new landing pages and posts worth creating, with the text written for you.', 'recommendations.index', 'medium');
+        }
         if ($drafts = $w->contentDrafts()->whereIn('status', [ContentStatus::ContentDraft->value, ContentStatus::HumanEdit->value])->count()) {
             $add("Review {$drafts} article draft(s)", 'Read, correct any facts, then approve and copy it to your website.', 'content.index', 'medium');
         }

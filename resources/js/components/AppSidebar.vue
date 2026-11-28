@@ -4,7 +4,22 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Activity, BadgeCheck, FileText, Gauge, Image, KeyRound, Link2, Plug, Plus, Search, Settings2, Users, Workflow } from 'lucide-vue-next';
+import {
+    Activity,
+    BadgeCheck,
+    FileText,
+    Gauge,
+    Image,
+    KeyRound,
+    Lightbulb,
+    Link2,
+    Plug,
+    Plus,
+    Search,
+    Settings2,
+    Users,
+    Workflow,
+} from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -16,6 +31,7 @@ const siteNav = computed(() => {
     if (!w) return [];
     return [
         { title: 'SEO Overview', url: route('websites.show', w.id), icon: Gauge },
+        { title: 'What to update', url: route('recommendations.index', w.id), icon: Lightbulb },
         { title: 'Website Audit', url: route('audit.index', w.id), icon: Search },
         { title: 'Pages', url: route('audit.pages', w.id), icon: FileText },
         { title: 'Keyword Research', url: route('keywords.index', w.id), icon: KeyRound },

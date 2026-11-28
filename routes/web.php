@@ -82,6 +82,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('prospects/{prospect}/outreach', [Web\BacklinkController::class, 'outreach'])->middleware('throttle:ai')->name('backlinks.outreach.store');
         Route::patch('outreach/{outreach}', [Web\BacklinkController::class, 'updateOutreach'])->name('backlinks.outreach.update');
 
+        Route::get('recommendations', [Web\RecommendationController::class, 'index'])->name('recommendations.index');
+        Route::post('recommendations/refresh', [Web\RecommendationController::class, 'refresh'])->name('recommendations.refresh');
+        Route::patch('recommendations/{recommendation}', [Web\RecommendationController::class, 'update'])->name('recommendations.update');
+        Route::post('recommendations/{recommendation}/brief', [Web\RecommendationController::class, 'brief'])->name('recommendations.brief');
         Route::get('listings', [Web\ListingController::class, 'index'])->name('listings.index');
         Route::post('listings/regenerate', [Web\ListingController::class, 'regenerate'])->middleware('throttle:ai')->name('listings.regenerate');
         Route::post('listings/mentions', [Web\ListingController::class, 'findMentions'])->name('listings.mentions');

@@ -28,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
             Models\CrawlRun::class, Models\WebsitePage::class, Models\SeoIssue::class, Models\Keyword::class,
             Models\KeywordCluster::class, Models\ContentBrief::class, Models\ContentDraft::class, Models\ImageAsset::class,
             Models\Competitor::class, Models\BacklinkProspect::class, Models\Backlink::class, Models\OutreachDraft::class,
-            Models\AutomationRun::class, Models\ListingSubmission::class,
+            Models\AutomationRun::class, Models\ListingSubmission::class, Models\Recommendation::class,
         ] as $model) {
             Gate::policy($model, WebsiteResourcePolicy::class);
         }

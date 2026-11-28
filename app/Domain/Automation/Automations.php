@@ -6,6 +6,7 @@ use App\Domain\Backlink\BacklinkDiscovery;
 use App\Domain\Backlink\BrandMentions;
 use App\Domain\Backlink\ListingKit;
 use App\Domain\Content\PublishChecker;
+use App\Domain\Content\Recommender;
 use App\Domain\Crawl\CrawlService;
 use App\Domain\Keyword\KeywordResearchService;
 use App\Jobs\RunAutomation;
@@ -29,6 +30,7 @@ class Automations
         private readonly BrandMentions $mentions,
         private readonly ListingKit $listings,
         private readonly PublishChecker $published,
+        private readonly Recommender $recommender,
     ) {}
 
     public function execute(Website $website, string $key, string $trigger = 'schedule')
@@ -45,6 +47,7 @@ class Automations
             'brand_mentions' => $this->mentions->find($w),
             'listing_check' => $this->listings->verifyAll($w),
             'published_check' => $this->published->recheckAll($w),
+            'recommendations' => $this->recommender->generate($w),
             'critical_issue_recheck' => $this->recheckCritical($w),
             'weekly_digest' => $this->digest($w),
             'stale_draft_reminder' => $this->staleDrafts($w),
@@ -82,6 +85,7 @@ class Automations
         if ($force || ! $recent('keyword_research')) {
             $jobs[] = new RunAutomation($w->id, 'keyword_research', 'autopilot');
         }
+        $jobs[] = new RunAutomation($w->id, 'recommendations', 'autopilot'); // after every crawl: resolve done items, add new ones
         if ($force || ! $recent('backlink_discovery')) {
             $jobs[] = new RunAutomation($w->id, 'backlink_discovery', 'autopilot');
         }

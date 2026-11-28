@@ -149,6 +149,11 @@ class Website extends Model
         return $this->backlinkProspects();
     }
 
+    public function recommendations(): HasMany
+    {
+        return $this->hasMany(Recommendation::class);
+    }
+
     public function listings(): HasMany
     {
         return $this->hasMany(ListingSubmission::class);

@@ -131,6 +131,7 @@ class AutopilotTest extends TestCase
         app(Automations::class)->followUp($website);
         Bus::assertChained([
             fn (RunAutomation $j) => $j->key === 'keyword_research',
+            fn (RunAutomation $j) => $j->key === 'recommendations',
             fn (RunAutomation $j) => $j->key === 'backlink_discovery',
             fn (RunAutomation $j) => $j->key === 'brand_mentions',
             fn (RunAutomation $j) => $j->key === 'listing_check',
@@ -141,9 +142,10 @@ class AutopilotTest extends TestCase
         }
         Bus::fake([RunAutomation::class]);
         app(Automations::class)->followUp($website->fresh());
-        Bus::assertNothingDispatched();
+        Bus::assertChained([fn (RunAutomation $j) => $j->key === 'recommendations'], 'only the cheap per-crawl step runs again within a week');
 
         $website->update(['settings_json' => ['autopilot' => false]]);
+        Bus::fake([RunAutomation::class]);
         app(Automations::class)->followUp($website->fresh(), force: false);
         Bus::assertNothingDispatched();
     }

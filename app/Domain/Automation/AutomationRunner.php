@@ -19,6 +19,8 @@ class AutomationRunner
             'help' => 'Finds what people search for, scores each idea and creates content briefs for gaps.'],
         'backlink_discovery' => ['label' => 'Backlink opportunities', 'schedule' => 'After keyword research (max weekly)',
             'help' => 'Finds pages that list tools like yours and drafts outreach messages for you to send.'],
+        'recommendations' => ['label' => 'Website update suggestions', 'schedule' => 'After each crawl',
+            'help' => 'Works out which pages to update, which landing pages and posts to create, and writes the proposed text.'],
         'brand_mentions' => ['label' => 'Brand mentions', 'schedule' => 'After backlink search (max weekly)',
             'help' => 'Finds pages that mention your brand without linking to you and drafts a short request.'],
         'listing_check' => ['label' => 'Listing check', 'schedule' => 'Weekly with autopilot',

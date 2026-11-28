@@ -28,6 +28,7 @@ class MockAiProvider implements AiContentProvider
             'classify_intent' => $this->classify($context),
             'seed_topics' => $this->seedTopics($context),
             'listing_pack' => [],
+            'page_update' => ['summary' => 'Apply the change described above.'],
             default => [],
         };
 

@@ -20,7 +20,10 @@ use Illuminate\Support\Str;
 
 class KeywordResearchService
 {
-    private const ARTICLE_PATH = '#/(blog|blogs|guides?|learn|resources|articles?|docs|help|academy|news|posts?)(/|$)#i';
+    /** An article page (/blog/some-post), not a hub listing page (/blog). */
+    private const ARTICLE_PATH = '#/(blog|blogs|guides?|learn|resources|articles?|docs|help|academy|news|posts?)/[^/]+#i';
+
+    private const HUB_PATH = '#^/(blog|blogs|guides?|learn|resources|articles?|docs|help|academy|news|posts?)/?$#i';
 
     private const INTENT_POINTS = ['transactional' => 10, 'commercial' => 10, 'informational' => 7, 'navigational' => 2];
 
@@ -126,8 +129,15 @@ class KeywordResearchService
         // Searchers who want to learn are served by articles, not product pages (intent match).
         $articles = $pages->filter(fn ($p) => preg_match(self::ARTICLE_PATH, (string) parse_url($p->canonical_url, PHP_URL_PATH)));
 
+        $hubIds = $pages->filter(fn ($p) => preg_match(self::HUB_PATH, (string) parse_url($p->canonical_url, PHP_URL_PATH)))->pluck('id')->all();
+
         foreach ($website->keywords()->with('pageTargets')->get() as $kw) {
             $target = $kw->pageTargets->first();
+            // Hub pages (/blog) list articles; they do not answer a search themselves.
+            if ($target && $target->notes === 'Matched automatically' && in_array($target->page_id, $hubIds, true)) {
+                $target->delete();
+                $target = null;
+            }
             $candidates = $kw->intent === 'informational' ? $articles : $pages;
             if (! $target && ($match = $this->bestPage($candidates, $kw->keyword, $common)) && $match['score'] >= 0.75) {
                 $target = PageKeywordTarget::create(['website_id' => $website->id, 'page_id' => $match['page_id'], 'keyword_id' => $kw->id,
@@ -319,12 +329,18 @@ class KeywordResearchService
         if (! $tokens) {
             return null;
         }
+        // Tie-break on all the searcher's words ("how to CREATE bundles") so the most specific page wins.
+        $allWords = array_values(array_filter(SiteProfile::words($keyword), fn ($w) => mb_strlen($w) > 2 && ! SiteProfile::isNoise($w)));
+        $has = fn (string $hay, string $t) => (bool) preg_match('/\b'.preg_quote(rtrim($t, 's'), '/').'/u', $hay);
         $best = null;
+        $bestTie = -1;
         foreach ($pages as $page) {
             $hay = Str::lower($page->title.' '.$page->h1.' '.str_replace(['-', '/', '_'], ' ', (string) parse_url($page->canonical_url, PHP_URL_PATH)));
-            $score = collect($tokens)->filter(fn ($t) => preg_match('/\b'.preg_quote(rtrim($t, 's'), '/').'/u', $hay))->count() / count($tokens);
-            if ($score > ($best['score'] ?? 0)) {
+            $score = collect($tokens)->filter(fn ($t) => $has($hay, $t))->count() / count($tokens);
+            $tie = collect($allWords)->filter(fn ($t) => $has($hay, $t))->count();
+            if ($score > ($best['score'] ?? 0) || ($best && $score == $best['score'] && $tie > $bestTie)) {
                 $best = ['page_id' => $page->id, 'url' => $page->canonical_url, 'title' => $page->title, 'score' => round($score, 2)];
+                $bestTie = $tie;
             }
         }
 
