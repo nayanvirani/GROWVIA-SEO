@@ -32,6 +32,8 @@ interface Current {
 const props = defineProps<{
     ai: Current;
     search: Current;
+    backup: Current;
+    backupPresets: Record<string, Preset>;
     aiPresets: Record<string, Preset>;
     searchPresets: Record<string, Preset>;
     canManage: boolean;
@@ -77,6 +79,50 @@ const saveAi = () =>
             preserveScroll: true,
             onSuccess: () => ai.reset('api_key', 'clear_key'),
         });
+
+// Backup AI: used automatically when the main AI is out of free quota, busy or too slow.
+const backup = useForm({
+    preset: props.backup.preset,
+    base_url: props.backup.base_url ?? '',
+    model: props.backup.model ?? '',
+    api_key: '',
+    clear_key: false,
+});
+const backupPreset = computed(() => props.backupPresets[backup.preset]);
+const sameAsMain = computed(() => backup.preset === props.ai.preset && props.ai.has_key);
+watch(
+    () => backup.preset,
+    (p) => {
+        backup.base_url = props.backupPresets[p]?.base_url ?? '';
+        if (p !== props.backup.preset) backup.model = '';
+    },
+);
+const backupModels = computed<string[]>(
+    () => (page.props.flash?.data?.models_for === backup.preset ? (page.props.flash?.data?.models as string[]) : []) ?? [],
+);
+const loadingBackup = ref(false);
+const loadBackupModels = () => {
+    loadingBackup.value = true;
+    router.post(
+        route('providers.models'),
+        { preset: backup.preset, base_url: backup.base_url || null, api_key: backup.api_key || null },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            onFinish: () => (loadingBackup.value = false),
+            onSuccess: () => {
+                // Prefer a different model than the main one, so each has its own free limits.
+                const list = backupModels.value.filter((m) => !(backup.preset === props.ai.preset && m === props.ai.model));
+                const rec = page.props.flash?.data?.recommended as string | undefined;
+                backup.model = rec && list.includes(rec) ? rec : (list[0] ?? '');
+            },
+        },
+    );
+};
+const saveBackup = () =>
+    backup
+        .transform((d) => ({ ...d, base_url: d.base_url || null, api_key: d.api_key || null }))
+        .patch(route('providers.update', 'ai_backup'), { preserveScroll: true, onSuccess: () => backup.reset('api_key', 'clear_key') });
 
 const search = useForm({ preset: props.search.preset, base_url: props.search.base_url ?? '', api_key: '', clear_key: false });
 const searchPreset = computed(() => props.searchPresets[search.preset]);
@@ -179,6 +225,81 @@ const test = (kind: string) => {
                 </template>
                 <div>
                     <Button :disabled="ai.processing || !canManage"><Save /> Save AI settings</Button>
+                </div>
+            </form>
+        </Panel>
+
+        <Panel
+            title="Backup AI (recommended)"
+            description="Free AI plans run out or get busy. When that happens, the app automatically sends the same request here instead, so writing never stops."
+        >
+            <template #actions>
+                <Badge :value="backup.preset === 'none' ? 'partial' : props.backup.model ? 'connected' : 'failed'" />
+                <Button
+                    v-if="props.backup.preset !== 'none'"
+                    size="sm"
+                    variant="outline"
+                    :disabled="testing === 'ai_backup'"
+                    @click="test('ai_backup')"
+                    ><PlugZap /> Test</Button
+                >
+            </template>
+            <form class="grid gap-4" @submit.prevent="saveBackup">
+                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    <label
+                        v-for="(p, key) in backupPresets"
+                        :key="key"
+                        :class="[
+                            'cursor-pointer rounded-lg border p-3 text-sm hover:bg-accent',
+                            backup.preset === key && 'border-primary ring-1 ring-primary',
+                        ]"
+                    >
+                        <input v-model="backup.preset" type="radio" :value="key" class="sr-only" :disabled="!canManage" />
+                        <span class="font-medium">{{ p.label }}</span>
+                        <span v-if="key === props.ai.preset" class="mt-1 block text-xs text-emerald-700"
+                            >Same as main: uses your existing key, pick a different model</span
+                        >
+                        <span v-else class="mt-1 block text-xs text-muted-foreground">{{ p.note }}</span>
+                    </label>
+                </div>
+                <div v-if="backup.preset !== 'none'" class="grid gap-3 md:grid-cols-2">
+                    <div v-if="backupPreset?.needs_key && !sameAsMain" class="grid gap-1.5">
+                        <Label>
+                            API key
+                            <a
+                                v-if="backupPreset.signup_url"
+                                :href="backupPreset.signup_url"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="ml-1 text-xs text-primary hover:underline"
+                                >get a free key</a
+                            >
+                            <span v-if="props.backup.has_key && props.backup.preset === backup.preset" class="text-xs text-muted-foreground">
+                                (saved: {{ props.backup.key_hint }})</span
+                            >
+                        </Label>
+                        <Input v-model="backup.api_key" type="password" autocomplete="off" placeholder="Paste key" :disabled="!canManage" />
+                    </div>
+                    <div class="grid gap-1.5">
+                        <Label>Model</Label>
+                        <div class="flex gap-2">
+                            <select
+                                v-if="backupModels.length"
+                                v-model="backup.model"
+                                class="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                            >
+                                <option v-for="m in backupModels" :key="m" :value="m">{{ m }}</option>
+                            </select>
+                            <Input v-else v-model="backup.model" placeholder="Click Load models" :disabled="!canManage" />
+                            <Button type="button" variant="outline" :disabled="loadingBackup || !canManage" @click="loadBackupModels"
+                                ><ListRestart /> Load models</Button
+                            >
+                        </div>
+                        <InputError :message="backup.errors.model" />
+                    </div>
+                </div>
+                <div>
+                    <Button :disabled="backup.processing || !canManage"><Save /> Save backup</Button>
                 </div>
             </form>
         </Panel>

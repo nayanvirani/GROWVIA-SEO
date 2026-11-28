@@ -41,7 +41,7 @@ return [
             'base_url' => 'https://api.groq.com/openai/v1',
             'needs_key' => true,
             'signup_url' => 'https://console.groq.com/keys',
-            'model_hint' => 'llama',
+            'model_hint' => null,
             'note' => 'Very fast, no credit card. Daily request limits per model.',
         ],
         'openrouter' => [

@@ -29,6 +29,8 @@ class ProviderController extends Controller
         return Inertia::render('providers/Index', [
             'ai' => $this->settings->describe($workspace->id, 'ai'),
             'search' => $this->settings->describe($workspace->id, 'search'),
+            'backup' => $this->settings->describe($workspace->id, 'ai_backup'),
+            'backupPresets' => ProviderSettings::presets('ai_backup'),
             'aiPresets' => config('seo.ai_presets'),
             'searchPresets' => config('seo.search_presets'),
             'canManage' => $request->user()->can('manage', $workspace),
@@ -43,7 +45,7 @@ class ProviderController extends Controller
         abort_unless(in_array($kind, ProviderSettings::KINDS, true), 404);
         $workspace = $request->user()->activeWorkspace();
         $this->authorize('manage', $workspace);
-        $presets = config($kind === 'ai' ? 'seo.ai_presets' : 'seo.search_presets');
+        $presets = ProviderSettings::presets($kind);
 
         $data = $request->validate([
             'preset' => ['required', Rule::in(array_keys($presets))],
@@ -53,7 +55,7 @@ class ProviderController extends Controller
             'clear_key' => ['nullable', 'boolean'],
         ]);
         $this->guardBaseUrl($data['preset'], $data['base_url'] ?? null);
-        if ($kind === 'ai' && $data['preset'] !== 'mock' && blank($data['model'] ?? null)) {
+        if (in_array($kind, ['ai', 'ai_backup'], true) && ! in_array($data['preset'], ['mock', 'none'], true) && blank($data['model'] ?? null)) {
             throw ValidationException::withMessages(['model' => 'Choose a model (click "Load models").']);
         }
         $this->settings->save($workspace->id, $kind, $data);
@@ -72,8 +74,9 @@ class ProviderController extends Controller
             'api_key' => ['nullable', 'string', 'max:500'],
         ]);
         $this->guardBaseUrl($data['preset'], $data['base_url'] ?? null);
-        $saved = $this->settings->get($workspace->id, 'ai');
-        $key = $data['api_key'] ?? ($saved['preset'] === $data['preset'] ? $saved['api_key'] : null);
+        // Use the typed key, else any saved key for the same provider (main or backup).
+        $key = $data['api_key'] ?? collect(['ai', 'ai_backup'])->map(fn ($k) => $this->settings->get($workspace->id, $k))
+            ->first(fn ($s) => $s['preset'] === $data['preset'] && filled($s['api_key']))['api_key'] ?? null;
 
         try {
             $provider = new OpenAiCompatibleProvider([
@@ -102,8 +105,12 @@ class ProviderController extends Controller
         $this->authorize('manage', $workspace);
 
         try {
-            if ($kind === 'ai') {
-                $result = $this->ai->forWorkspace($workspace->id)->generate('classify_intent', [
+            if (in_array($kind, ['ai', 'ai_backup'], true)) {
+                $provider = $kind === 'ai' ? $this->ai->forWorkspace($workspace->id) : $this->ai->backupFor($workspace->id);
+                if (! $provider) {
+                    return back()->with('error', 'No backup AI is set.');
+                }
+                $result = $provider->generate('classify_intent', [
                     '_system' => 'Classify search intent. Reply with JSON {"results":[{"keyword":"...","intent":"informational|commercial|transactional|navigational"}]}.',
                     'keywords' => ['best shopify upsell app'],
                 ], ['required' => ['results']]);

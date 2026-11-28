@@ -10,17 +10,18 @@ use App\Models\Integration;
  */
 class ProviderSettings
 {
-    public const KINDS = ['ai', 'search'];
+    public const KINDS = ['ai', 'search', 'ai_backup'];
 
     /** @return array{preset: string, base_url: ?string, model: ?string, api_key: ?string, configured: bool} */
     public function get(string $workspaceId, string $kind): array
     {
         $row = $this->row($workspaceId, $kind);
         $meta = $row?->metadata_json ?? [];
-        $preset = $meta['preset'] ?? ($kind === 'ai' ? config('seo.ai.provider', 'mock') : 'duckduckgo');
-        $presets = config($kind === 'ai' ? 'seo.ai_presets' : 'seo.search_presets');
+        $default = ['ai' => config('seo.ai.provider', 'mock'), 'search' => 'duckduckgo', 'ai_backup' => 'none'][$kind];
+        $preset = $meta['preset'] ?? $default;
+        $presets = self::presets($kind);
         if (! isset($presets[$preset])) {
-            $preset = $kind === 'ai' ? 'mock' : 'duckduckgo';
+            $preset = $default;
         }
         $key = $row?->encrypted_credentials['api_key'] ?? null;
 
@@ -31,6 +32,17 @@ class ProviderSettings
             'api_key' => $key,
             'configured' => ! ($presets[$preset]['needs_key'] ?? false) || filled($key),
         ];
+    }
+
+    /** Choices for a settings kind. The backup AI can be "none". */
+    public static function presets(string $kind): array
+    {
+        return match ($kind) {
+            'search' => config('seo.search_presets'),
+            'ai_backup' => ['none' => ['label' => 'No backup', 'base_url' => null, 'needs_key' => false, 'signup_url' => null,
+                'note' => 'If the main AI runs out of free quota, writing waits until it resets.']] + collect(config('seo.ai_presets'))->except('mock')->all(),
+            default => config('seo.ai_presets'),
+        };
     }
 
     /** Public view for the settings page: never includes the key itself. */

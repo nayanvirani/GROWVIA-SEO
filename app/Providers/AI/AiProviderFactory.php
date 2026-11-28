@@ -14,8 +14,28 @@ class AiProviderFactory
             return new MockAiProvider;
         }
         $s = $this->settings->get($workspaceId, 'ai');
+        $primary = $this->make($s['preset'], $s['base_url'], $s['api_key'], $s['model']);
 
-        return $this->make($s['preset'], $s['base_url'], $s['api_key'], $s['model']);
+        $b = $this->settings->get($workspaceId, 'ai_backup');
+        if ($s['preset'] === 'mock' || $b['preset'] === 'none' || blank($b['model'])) {
+            return $primary;
+        }
+        // Same provider as the main AI (e.g. a second Groq model): reuse the main key.
+        $key = $b['api_key'] ?? ($b['preset'] === $s['preset'] ? $s['api_key'] : null);
+
+        return new FailoverAiProvider($primary, $this->make($b['preset'], $b['base_url'], $key, $b['model']));
+    }
+
+    /** The backup alone (for the settings page Test button). */
+    public function backupFor(string $workspaceId): ?AiContentProvider
+    {
+        $s = $this->settings->get($workspaceId, 'ai');
+        $b = $this->settings->get($workspaceId, 'ai_backup');
+        if ($b['preset'] === 'none' || blank($b['model'])) {
+            return null;
+        }
+
+        return $this->make($b['preset'], $b['base_url'], $b['api_key'] ?? ($b['preset'] === $s['preset'] ? $s['api_key'] : null), $b['model']);
     }
 
     public function make(string $preset, ?string $baseUrl, ?string $apiKey, ?string $model): AiContentProvider

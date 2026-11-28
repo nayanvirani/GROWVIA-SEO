@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Domain\AI\AiService;
 use App\Domain\Settings\ProviderSettings;
 use App\Models\Integration;
+use App\Providers\AI\AiProviderFactory;
 use App\Providers\AI\OpenAiCompatibleProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -140,5 +142,45 @@ class ProviderSettingsTest extends TestCase
         $this->assertSame('generation_failed', $brief->status);
         $this->assertStringContainsString('no longer available to new users', $brief->last_error);
         $this->assertStringContainsString('Load models', $brief->last_error);
+    }
+
+    public function test_recommends_the_big_general_model_from_a_groq_list()
+    {
+        $groq = ['allam-2-7b', 'canopylabs/orpheus-v1-english', 'meta-llama/llama-prompt-guard-2-86m', 'openai/gpt-oss-120b',
+            'openai/gpt-oss-20b', 'openai/gpt-oss-safeguard-20b', 'qwen/qwen3.8-27b', 'whisper-large-v3'];
+        $this->assertSame('openai/gpt-oss-120b', OpenAiCompatibleProvider::recommend($groq, null));
+    }
+
+    public function test_backup_ai_takes_over_when_main_is_out_of_quota_but_not_on_bad_keys()
+    {
+        [$user, $website] = $this->userWithWebsite();
+        $this->actingAs($user)->patch(route('providers.update', 'ai'), ['preset' => 'groq', 'api_key' => 'gsk_main', 'model' => 'openai/gpt-oss-120b']);
+        $this->actingAs($user)->patch(route('providers.update', 'ai_backup'), ['preset' => 'groq', 'model' => 'qwen/qwen3.8-27b'])->assertSessionHasNoErrors();
+
+        Http::fake(['api.groq.com/*' => function ($request) {
+            return $request['model'] === 'openai/gpt-oss-120b'
+                ? Http::response(['error' => ['message' => 'Rate limit reached for model']], 429)
+                : Http::response(['model' => 'qwen/qwen3.8-27b', 'choices' => [['message' => ['content' => '{"explanation":"x","next_step":"y","confidence":"high"}']]]]);
+        }]);
+        $result = app(AiService::class)->run($website, 'explain_issue', ['issue_summary' => 'x']);
+        $this->assertSame('groq (backup)', $result['provider']);
+        $this->assertSame('qwen/qwen3.8-27b', $result['model']);
+        Http::assertSent(fn ($r) => $r['model'] === 'qwen/qwen3.8-27b' && $r->hasHeader('Authorization', 'Bearer gsk_main'), 'same provider reuses the main key');
+
+        // A wrong key is a configuration problem: no silent failover.
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake(['api.groq.com/*' => Http::response(['error' => ['message' => 'Invalid API Key']], 401)]);
+        try {
+            app(AiService::class)->run($website, 'explain_issue', ['issue_summary' => 'x']);
+            $this->fail('expected error');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('rejected the API key', $e->getMessage());
+            $this->assertStringNotContainsString('Backup AI', $e->getMessage());
+        }
+
+        $this->actingAs($user)->get(route('providers.index'))->assertInertia(fn ($p) => $p->where('backup.preset', 'groq')->where('backup.model', 'qwen/qwen3.8-27b')->has('backupPresets.none'));
+        $this->actingAs($user)->patch(route('providers.update', 'ai_backup'), ['preset' => 'none'])->assertSessionHasNoErrors();
+        $this->assertNull(app(AiProviderFactory::class)->backupFor($website->workspace_id));
     }
 }

@@ -79,8 +79,10 @@ class OpenAiCompatibleProvider implements AiContentProvider
      */
     public static function recommend(array $models, ?string $hint): ?string
     {
-        $skip = '/(tts|image|audio|live|embed|vision|whisper|guard|moderation|preview|exp|lite|nano|omni|robotics|computer|search|transcribe|-\d{4}$|\d{2}-\d{4})/i';
-        $ok = array_values(array_filter($models, fn ($m) => ! preg_match($skip, $m) && (! $hint || str_contains($m, $hint))));
+        // Not general text models: speech, images, safety filters, embeddings, niche-language or preview builds.
+        $skip = '/(tts|image|audio|live|embed|vision|whisper|orpheus|guard|safeguard|moderation|preview|exp\b|lite|nano|omni|robotics|computer|search|transcribe|allam|-\d{4}$|\d{2}-\d{4})/i';
+        $general = array_values(array_filter($models, fn ($m) => ! preg_match($skip, $m)));
+        $ok = array_values(array_filter($general, fn ($m) => ! $hint || str_contains($m, $hint))) ?: $general;
         if (! $ok) {
             return $models[0] ?? null;
         }
@@ -88,9 +90,15 @@ class OpenAiCompatibleProvider implements AiContentProvider
         if ($latest) {
             return $latest[0];
         }
-        usort($ok, fn ($a, $b) => version_compare(self::version($b), self::version($a)));
+        // Prefer the biggest model ("120b" over "27b"), then the newest version.
+        usort($ok, fn ($a, $b) => [self::size($b), self::version($b)] <=> [self::size($a), self::version($a)]);
 
         return $ok[0];
+    }
+
+    private static function size(string $model): int
+    {
+        return preg_match('/(\d+)b\b/i', $model, $m) ? (int) $m[1] : 0;
     }
 
     private static function version(string $model): string

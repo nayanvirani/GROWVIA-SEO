@@ -62,14 +62,15 @@ TXT;
 
         for ($attempt = 1; $attempt <= 2; $attempt++) {
             $result = $provider->generate($task, $context, $schema);
-            ActivityLogger::usage($website, $provider->name(), "ai.{$task}",
+            $usedName = $provider->name(); // after the call: may be the backup
+            ActivityLogger::usage($website, $usedName, "ai.{$task}",
                 $result['input_tokens'] + $result['output_tokens']);
 
             if ($this->valid($result['data'], $required)) {
                 return [
                     'data' => $result['data'],
                     'model' => $result['model'],
-                    'provider' => $provider->name(),
+                    'provider' => $usedName,
                     'prompt_version' => config('seo.ai.prompt_version'),
                 ];
             }
