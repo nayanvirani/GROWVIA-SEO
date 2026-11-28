@@ -53,6 +53,7 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('keywords/{keyword}', [Web\KeywordController::class, 'update'])->name('keywords.update');
         Route::delete('keywords/{keyword}', [Web\KeywordController::class, 'destroy'])->name('keywords.destroy');
         Route::post('keywords/{keyword}/map', [Web\KeywordController::class, 'map'])->name('keywords.map');
+        Route::post('keywords/{keyword}/brief', [Web\KeywordController::class, 'brief'])->name('keywords.brief');
         Route::get('keywords/export', [Web\KeywordController::class, 'export'])->name('keywords.export');
         Route::patch('clusters/{cluster}', [Web\KeywordController::class, 'updateCluster'])->name('keywords.clusters.update');
 

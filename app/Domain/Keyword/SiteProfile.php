@@ -23,6 +23,7 @@ class SiteProfile
         'guide', 'guides', 'step', 'steps', 'explained', 'practical', 'ultimate', 'complete', 'easy', 'simple', 'quick',
         'app', 'apps', 'tool', 'tools', 'software', 'plugin', 'plugins', 'platform',
         'store', 'stores', 'shop', 'shops', 'website', 'websites', 'business', 'businesses', 'brand', 'brands', 'ecommerce',
+        'growth', 'online', 'services', 'service',
         'docs', 'help', 'works', 'work', 'valid', 'setup', 'setups', 'features', 'feature', 'things', 'ways', 'tips', 'well', 'really'];
 
     /** Grammar words trimmed from the edges of a topic phrase. Unlike STOPWORDS, "free" or "best" are kept. */

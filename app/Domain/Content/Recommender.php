@@ -4,6 +4,7 @@ namespace App\Domain\Content;
 
 use App\Domain\AI\AiService;
 use App\Domain\Keyword\SiteProfile;
+use App\Domain\Keyword\TopicMatch;
 use App\Models\ContentBrief;
 use App\Models\Keyword;
 use App\Models\Recommendation;
@@ -21,9 +22,6 @@ use Illuminate\Support\Str;
 class Recommender
 {
     private const SKIP_SECTIONS = ['legal', 'privacy', 'terms', 'cookies', 'dpa', 'contact', 'login', 'signup', 'account', 'docs', 'help', 'security', 'about'];
-
-    /** "add", "create", "set up"... describe the same task; they do not decide whether a page covers a topic. */
-    private const ACTION_WORDS = ['add', 'adding', 'create', 'creating', 'make', 'making', 'set', 'setup', 'build', 'use', 'using', 'get', 'enable', 'install', 'start'];
 
     private SiteProfile $profile;
 
@@ -195,15 +193,7 @@ class Recommender
 
     private function covers(string $text, string $keyword): bool
     {
-        $text = ' '.Str::lower(str_replace(['-', '–', '&'], ' ', $text)).' ';
-        $words = collect(SiteProfile::words($keyword))
-            ->reject(fn ($w) => in_array($w, SiteProfile::STOPWORDS, true) || $w === $this->profile->context || SiteProfile::isNoise($w)
-                || in_array($w, self::ACTION_WORDS, true));
-        if ($words->isEmpty()) {
-            return true;
-        }
-
-        return $words->every(fn ($w) => str_contains($text, ' '.preg_replace('/(ies|s)$/', '', $w)));
+        return TopicMatch::covers($text, $keyword, $this->profile->context);
     }
 
     /** "shopify bundles app" and "best shopify bundle app" -> same key. */

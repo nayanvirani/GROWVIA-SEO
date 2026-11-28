@@ -309,6 +309,12 @@ class KeywordResearchService
         return ($best['score'] ?? 0) >= 0.5 ? $best : null;
     }
 
+    /** Best existing page for a keyword among the given pages (score 0..1), or null. */
+    public function bestPageFor(Collection $pages, string $keyword): ?array
+    {
+        return $this->bestPage($pages, $keyword, $this->commonWords($pages));
+    }
+
     /** Words on more than 40% of pages (like the platform name) say nothing about which page fits. */
     private function commonWords(Collection $pages): array
     {
@@ -337,7 +343,9 @@ class KeywordResearchService
         foreach ($pages as $page) {
             $hay = Str::lower($page->title.' '.$page->h1.' '.str_replace(['-', '/', '_'], ' ', (string) parse_url($page->canonical_url, PHP_URL_PATH)));
             $score = collect($tokens)->filter(fn ($t) => $has($hay, $t))->count() / count($tokens);
-            $tie = collect($allWords)->filter(fn ($t) => $has($hay, $t))->count();
+            // Words in the URL path are the strongest sign of what a page is about (/features/bundles).
+            $path = Str::lower(str_replace(['-', '/', '_'], ' ', (string) parse_url($page->canonical_url, PHP_URL_PATH)));
+            $tie = collect($allWords)->filter(fn ($t) => $has($hay, $t))->count() + 2 * collect($tokens)->filter(fn ($t) => $has($path, $t))->count();
             if ($score > ($best['score'] ?? 0) || ($best && $score == $best['score'] && $tie > $bestTie)) {
                 $best = ['page_id' => $page->id, 'url' => $page->canonical_url, 'title' => $page->title, 'score' => round($score, 2)];
                 $bestTie = $tie;

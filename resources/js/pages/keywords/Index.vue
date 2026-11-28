@@ -3,220 +3,260 @@ import Badge from '@/components/seo/Badge.vue';
 import EmptyState from '@/components/seo/EmptyState.vue';
 import Pagination from '@/components/seo/Pagination.vue';
 import Panel from '@/components/seo/Panel.vue';
-import SelectField from '@/components/seo/SelectField.vue';
 import TextArea from '@/components/seo/TextArea.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import SeoLayout from '@/layouts/SeoLayout.vue';
-import { datetime, path } from '@/lib/format';
+import { datetime } from '@/lib/format';
 import type { Paginated, SharedData } from '@/types';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { watchDebounced } from '@vueuse/core';
-import { Download, Search, Sparkles, Wand2 } from 'lucide-vue-next';
+import {
+    Check,
+    CheckCircle2,
+    CircleSlash,
+    Copy,
+    Download,
+    ExternalLink,
+    FilePlus2,
+    Hourglass,
+    PenLine,
+    Search,
+    Sparkles,
+    Trash2,
+} from 'lucide-vue-next';
 import { computed, reactive, ref } from 'vue';
 
+interface Advice {
+    group: 'todo' | 'planned' | 'done' | 'skip';
+    action: string;
+    summary: string;
+    page_url: string | null;
+    page_path: string | null;
+    steps: string[];
+    suggestion: { label: string; text: string; where: string } | null;
+    outline?: string[] | null;
+    can_brief: boolean;
+    recommendation_id: string | null;
+    content_url?: string;
+}
+interface Row {
+    id: string;
+    keyword: string;
+    intent: string | null;
+    opportunity_score: number | null;
+    opportunity_json: Record<string, { points: number; why: string }> | null;
+    sources_json: string[] | null;
+    clusters: string[];
+    advice: Advice;
+}
+
 const props = defineProps<{
-    keywords: Paginated<any>;
-    filters: { q?: string; intent?: string; cluster?: string };
-    clusters: any[];
-    pages: { id: string; canonical_url: string; title: string }[];
+    keywords: Paginated<Row>;
+    filters: { q?: string; cluster?: string; show: string };
+    counts: Record<string, number>;
+    groups: Record<string, string>;
+    clusters: { id: string; name: string; keywords_count: number }[];
     seeds: string[];
     defaults: { locale: string; language: string };
     lastRun: { status: string; started_at: string; error_message: string | null; result_json: any } | null;
 }>();
 const page = usePage<SharedData>();
 const w = computed(() => page.props.currentWebsite!);
-const intents = ['informational', 'commercial', 'transactional', 'navigational'];
 const canWork = computed(() => ['owner', 'admin', 'editor'].includes(page.props.workspace?.role ?? ''));
 
-const research = useForm({ seeds: '', locale: props.defaults.locale, language: props.defaults.language });
-const manual = useForm({ keyword: '', locale: props.defaults.locale, language: props.defaults.language, intent: null as string | null });
-const f = reactive({ q: props.filters.q ?? '', intent: props.filters.intent ?? null, cluster: props.filters.cluster ?? null });
+const f = reactive({ q: props.filters.q ?? '', cluster: props.filters.cluster ?? null, show: props.filters.show });
 watchDebounced(
     f,
-    () => router.get(route('keywords.index', w.value.id), Object.fromEntries(Object.entries(f).filter(([, v]) => v)), { preserveState: true }),
+    () =>
+        router.get(route('keywords.index', w.value.id), Object.fromEntries(Object.entries(f).filter(([, v]) => v)), {
+            preserveState: true,
+            preserveScroll: true,
+        }),
     { debounce: 300 },
 );
 
-const open = ref<string | null>(null);
-const showAdvanced = ref(false);
-const suggestion = computed(() => page.props.flash?.data?.page_suggestion as { keyword_id: string; suggestion: any } | undefined);
+const open = ref<string | null>(props.keywords.data[0]?.id ?? null);
+const showWhy = ref<string | null>(null);
+const showMore = ref(false);
+const copied = ref<string | null>(null);
+const copy = (id: string, text: string) => {
+    navigator.clipboard?.writeText(text);
+    copied.value = id;
+    setTimeout(() => (copied.value = null), 1500);
+};
+const brief = (k: Row) => router.post(route('keywords.brief', [w.value.id, k.id]));
+const remove = (k: Row) => router.delete(route('keywords.destroy', [w.value.id, k.id]), { preserveScroll: true });
 const runAuto = () => router.post(route('automation.run', [w.value.id, 'keyword_research']), {}, { preserveScroll: true });
-const update = (k: any, data: Record<string, unknown>) => router.patch(route('keywords.update', [w.value.id, k.id]), data, { preserveScroll: true });
-const map = (k: any, page_id: string | null) => router.post(route('keywords.map', [w.value.id, k.id]), { page_id }, { preserveScroll: true });
-const suggest = (k: any) => router.post(route('keywords.map', [w.value.id, k.id]), { suggest: true }, { preserveScroll: true });
-const remove = (k: any) => router.delete(route('keywords.destroy', [w.value.id, k.id]), { preserveScroll: true });
-const pageOptions = computed(() => props.pages.map((p) => ({ value: p.id, label: path(p.canonical_url) })));
-const scoreTone = (s: number | null) =>
+
+const research = useForm({ seeds: '', locale: props.defaults.locale, language: props.defaults.language });
+const tone = (s: number | null) =>
     s === null ? 'bg-muted' : s >= 70 ? 'bg-emerald-100 text-emerald-800' : s >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600';
-const hasVolume = computed(() => props.keywords.data.some((k) => k.volume !== null));
+const icons = { todo: PenLine, planned: Hourglass, done: CheckCircle2, skip: CircleSlash } as const;
+const tabs = computed(() => [...Object.entries(props.groups), ['all', 'All']] as [string, string][]);
+const intentHelp: Record<string, string> = {
+    commercial: 'comparing tools',
+    transactional: 'ready to install or buy',
+    informational: 'wants to learn',
+    navigational: 'looking for a specific site',
+};
 </script>
 
 <template>
     <SeoLayout
-        title="Keyword research"
-        description="Keywords are the phrases people type into Google. Autopilot finds them for you and ranks the best ones to write about."
+        title="Keywords"
+        description="Keywords are what people type into Google. For each one, this page tells you exactly what to do: where, what to write, or that you can skip it."
     >
         <template #actions>
             <a :href="route('keywords.export', w.id)"
                 ><Button variant="outline"><Download /> CSV</Button></a
             >
-            <Button v-if="canWork" @click="runAuto"><Sparkles /> Find keywords automatically</Button>
+            <Button v-if="canWork" @click="runAuto"><Sparkles /> Find new keywords</Button>
         </template>
 
-        <div class="rounded-xl border bg-muted/30 p-4 text-sm">
-            <p class="font-medium">How to read this page</p>
-            <ul class="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
-                <li><strong>Opportunity</strong> (0–100) is our estimate of how worthwhile a phrase is for your site. Click a score to see why.</li>
-                <li>
-                    <strong>No page yet</strong> means nobody can find you for that search, so it's a good article idea. Autopilot creates briefs for
-                    the best ones in Content Studio.
-                </li>
-                <li>Free sources do not reveal exact monthly searches, so we don't show made-up numbers.</li>
-            </ul>
-            <p v-if="lastRun" class="mt-2 text-xs">
-                Last automatic research: <Badge :value="lastRun.status" /> {{ datetime(lastRun.started_at) }}
-                <span v-if="lastRun.result_json?.seeds?.length" class="text-muted-foreground">
-                    · topics: {{ lastRun.result_json.seeds.join(', ') }}</span
-                >
-                <span v-if="lastRun.error_message" class="text-red-600"> · {{ lastRun.error_message }}</span>
-            </p>
+        <!-- Tabs: start with what needs doing -->
+        <div class="flex flex-wrap items-center gap-2">
+            <button
+                v-for="[key, label] in tabs"
+                :key="key"
+                :class="[
+                    'rounded-full border px-3 py-1.5 text-sm',
+                    f.show === key ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
+                ]"
+                @click="f.show = key"
+            >
+                {{ label }} <span class="ml-1 tabular-nums opacity-80">{{ counts[key] ?? 0 }}</span>
+            </button>
+            <Input v-model="f.q" placeholder="Search keywords" class="ml-auto h-9 w-56" />
         </div>
+        <p class="text-sm text-muted-foreground">
+            <template v-if="f.show === 'todo'"
+                >Start at the top: these are the most valuable. Each one says <strong>where</strong> to make a change and <strong>what</strong> to
+                write.</template
+            >
+            <template v-else-if="f.show === 'planned'">Content already planned or drafted for these. Finish them in Content Studio.</template>
+            <template v-else-if="f.show === 'done'">Your website already targets these. Nothing to do.</template>
+            <template v-else-if="f.show === 'skip'">Not worth your time: off-topic, too weak, or people looking for another website.</template>
+        </p>
 
-        <Panel v-if="clusters.length" title="Topics" description="Related keywords grouped together. Click one to filter.">
-            <div class="flex flex-wrap gap-2">
-                <button
-                    v-for="c in clusters"
-                    :key="c.id"
-                    :class="['rounded-full border px-3 py-1 text-xs hover:bg-accent', f.cluster === c.id && 'bg-accent']"
-                    @click="f.cluster = f.cluster === c.id ? null : c.id"
-                >
-                    {{ c.name }} · {{ c.keywords_count }}
+        <EmptyState
+            v-if="!keywords.data.length"
+            :title="f.show === 'todo' ? 'Nothing to do right now' : 'No keywords here'"
+            :text="counts.all ? 'Check the other tabs.' : 'Click “Find new keywords”. Your website pages are used to work out your topics.'"
+        />
+
+        <div class="grid gap-3">
+            <div v-for="k in keywords.data" :key="k.id" class="rounded-xl border bg-card">
+                <button class="flex w-full items-start gap-3 p-4 text-left" @click="open = open === k.id ? null : k.id">
+                    <component
+                        :is="icons[k.advice.group]"
+                        :class="[
+                            'mt-0.5 h-5 w-5 shrink-0',
+                            { todo: 'text-blue-600', planned: 'text-amber-600', done: 'text-emerald-600', skip: 'text-slate-400' }[k.advice.group],
+                        ]"
+                    />
+                    <span class="min-w-0 flex-1">
+                        <span class="block font-medium">“{{ k.keyword }}”</span>
+                        <span class="block text-sm">
+                            <strong>{{ k.advice.action }}</strong>
+                            <span v-if="k.advice.page_path"> · {{ k.advice.page_path }}</span>
+                        </span>
+                        <span class="block text-xs text-muted-foreground">{{ k.advice.summary }}</span>
+                    </span>
+                    <span
+                        :class="['shrink-0 rounded-md px-2 py-0.5 text-sm font-semibold tabular-nums', tone(k.opportunity_score)]"
+                        :title="'Opportunity score (0–100): our estimate of how worthwhile this phrase is'"
+                        >{{ k.opportunity_score ?? '—' }}</span
+                    >
                 </button>
-            </div>
-        </Panel>
 
-        <div v-if="suggestion" class="rounded-lg border bg-muted/40 p-3 text-sm">
-            <template v-if="suggestion.suggestion">
-                Best matching page: <strong>{{ path(suggestion.suggestion.url) }}</strong> ({{ Math.round(suggestion.suggestion.score * 100) }}%
-                match).
-                <Button size="sm" variant="outline" class="ml-2" @click="map({ id: suggestion.keyword_id }, suggestion.suggestion.page_id)"
-                    >Use this page</Button
-                >
-            </template>
-            <template v-else>No existing page fits — writing a new article is the way to rank for this.</template>
+                <div v-if="open === k.id" class="grid gap-3 border-t px-4 py-3 text-sm">
+                    <!-- WHERE -->
+                    <div v-if="k.advice.suggestion" class="grid gap-1">
+                        <p class="text-xs font-medium uppercase text-muted-foreground">Where</p>
+                        <p>
+                            {{ k.advice.suggestion.where }}
+                            <a
+                                v-if="k.advice.page_url"
+                                :href="k.advice.page_url"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="ml-1 inline-flex items-center gap-1 text-primary hover:underline"
+                                >open page <ExternalLink class="h-3 w-3"
+                            /></a>
+                        </p>
+                    </div>
+                    <!-- WHAT TO WRITE -->
+                    <div v-if="k.advice.suggestion" class="grid gap-1">
+                        <p class="text-xs font-medium uppercase text-muted-foreground">What to write — {{ k.advice.suggestion.label }}</p>
+                        <div class="flex items-start justify-between gap-2 rounded-md border bg-muted/40 p-2">
+                            <span class="font-medium">{{ k.advice.suggestion.text }}</span>
+                            <button class="shrink-0 text-primary" title="Copy" @click="copy(k.id, k.advice.suggestion.text)">
+                                <Check v-if="copied === k.id" class="h-4 w-4" /><Copy v-else class="h-4 w-4" />
+                            </button>
+                        </div>
+                        <ul v-if="k.advice.outline?.length" class="list-disc pl-5 text-muted-foreground">
+                            <li v-for="o in k.advice.outline" :key="o">{{ o }}</li>
+                        </ul>
+                    </div>
+                    <!-- HOW -->
+                    <div v-if="k.advice.steps.length" class="grid gap-1">
+                        <p class="text-xs font-medium uppercase text-muted-foreground">How</p>
+                        <ol class="list-decimal space-y-0.5 pl-5">
+                            <li v-for="s in k.advice.steps" :key="s">{{ s }}</li>
+                        </ol>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <Button v-if="canWork && k.advice.can_brief" size="sm" @click="brief(k)"
+                            ><FilePlus2 /> Create brief (AI writes the draft)</Button
+                        >
+                        <Link v-if="k.advice.content_url" :href="k.advice.content_url"><Button size="sm">Open Content Studio</Button></Link>
+                        <Link v-if="k.advice.recommendation_id" :href="route('recommendations.index', w.id)"
+                            ><Button size="sm" variant="outline">See in “What to update”</Button></Link
+                        >
+                        <Button size="sm" variant="ghost" @click="showWhy = showWhy === k.id ? null : k.id">Why this score?</Button>
+                        <Button
+                            v-if="canWork"
+                            size="sm"
+                            variant="ghost"
+                            class="ml-auto text-muted-foreground"
+                            title="Remove: not relevant to Growvia"
+                            @click="remove(k)"
+                            ><Trash2 /> Not relevant</Button
+                        >
+                    </div>
+
+                    <div v-if="showWhy === k.id" class="rounded-md bg-muted/50 p-2 text-xs">
+                        <p class="mb-1">
+                            Searcher {{ intentHelp[k.intent ?? ''] ?? 'intent unknown' }} · found via {{ (k.sources_json ?? ['manual']).join(' + ') }}
+                            <span v-if="k.clusters.length"> · topic: {{ k.clusters.join(', ') }}</span>
+                        </p>
+                        <table class="w-full max-w-xl">
+                            <tr v-for="(v, key) in k.opportunity_json ?? {}" :key="key" class="border-t">
+                                <td class="py-0.5 pr-2 capitalize">{{ key }}</td>
+                                <td class="pr-2 tabular-nums">+{{ v.points }}</td>
+                                <td class="text-muted-foreground">{{ v.why }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <Panel title="Keywords">
-            <template #actions>
-                <Input v-model="f.q" placeholder="Filter" class="h-8 w-48" />
-                <SelectField v-model="f.intent" :options="intents" placeholder="Any intent" class="h-8 w-40" />
-            </template>
-            <EmptyState
-                v-if="!keywords.data.length"
-                title="No keywords yet"
-                text='Click "Find keywords automatically". It uses your website pages to work out your topics.'
-            />
-            <div v-else class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="text-left text-xs text-muted-foreground">
-                        <tr>
-                            <th class="py-1 pr-3">Keyword</th>
-                            <th class="pr-3">Opportunity</th>
-                            <th class="pr-3">Searcher wants</th>
-                            <th v-if="hasVolume" class="pr-3">Volume</th>
-                            <th class="pr-3">Your page for it</th>
-                            <th />
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template v-for="k in keywords.data" :key="k.id">
-                            <tr class="border-t align-top">
-                                <td class="py-1.5 pr-3">
-                                    {{ k.keyword }}
-                                    <div class="text-xs text-muted-foreground">
-                                        {{ (k.sources_json ?? [k.provider]).join(' + ')
-                                        }}<span v-if="k.clusters.length"> · {{ k.clusters.map((c: any) => c.name).join(', ') }}</span>
-                                    </div>
-                                </td>
-                                <td class="pr-3">
-                                    <button
-                                        :class="['rounded-md px-2 py-0.5 font-semibold tabular-nums', scoreTone(k.opportunity_score)]"
-                                        @click="open = open === k.id ? null : k.id"
-                                    >
-                                        {{ k.opportunity_score ?? '—' }}
-                                    </button>
-                                </td>
-                                <td class="pr-3"><Badge :value="k.intent" /></td>
-                                <td v-if="hasVolume" class="pr-3 tabular-nums">{{ k.volume ?? '—' }}</td>
-                                <td class="min-w-48 pr-3">
-                                    <select
-                                        :value="k.page_targets[0]?.page_id ?? ''"
-                                        :disabled="!canWork"
-                                        class="h-8 w-full rounded border bg-background px-1 text-xs"
-                                        @change="map(k, ($event.target as HTMLSelectElement).value || null)"
-                                    >
-                                        <option value="">No page yet</option>
-                                        <option v-for="o in pageOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-                                    </select>
-                                </td>
-                                <td class="whitespace-nowrap">
-                                    <Button v-if="canWork" size="sm" variant="ghost" title="Find best matching page" @click="suggest(k)"
-                                        ><Wand2
-                                    /></Button>
-                                    <Link
-                                        v-if="canWork"
-                                        :href="route('content.index', w.id) + `?keyword_id=${k.id}&title=${encodeURIComponent(k.keyword)}`"
-                                        ><Button size="sm" variant="ghost">Write</Button></Link
-                                    >
-                                    <Button v-if="canWork" size="sm" variant="ghost" class="text-red-600" title="Not relevant" @click="remove(k)"
-                                        >×</Button
-                                    >
-                                </td>
-                            </tr>
-                            <tr v-if="open === k.id">
-                                <td colspan="6" class="pb-3">
-                                    <table class="w-full max-w-xl rounded bg-muted/50 text-xs">
-                                        <tr v-for="(v, key) in k.opportunity_json ?? {}" :key="key" class="border-t">
-                                            <td class="px-2 py-1 capitalize">{{ key }}</td>
-                                            <td class="px-2 tabular-nums">+{{ v.points }}</td>
-                                            <td class="px-2 text-muted-foreground">{{ v.why }}</td>
-                                        </tr>
-                                    </table>
-                                    <div class="mt-1 flex items-center gap-2 text-xs">
-                                        Priority:
-                                        <select
-                                            :value="k.priority ?? ''"
-                                            class="h-7 rounded border bg-background px-1"
-                                            @change="update(k, { priority: ($event.target as HTMLSelectElement).value || null })"
-                                        >
-                                            <option value="">—</option>
-                                            <option>high</option>
-                                            <option>medium</option>
-                                            <option>low</option>
-                                        </select>
-                                    </div>
-                                </td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
-            <Pagination :links="keywords.links" :total="keywords.total" />
-        </Panel>
+        <Pagination :links="keywords.links" :total="keywords.total" />
 
         <Panel
             v-if="canWork"
-            title="Optional: add your own topics"
-            description="Autopilot already picks topics from your website. Use this only if you want to explore something specific."
+            title="Optional: research a topic yourself"
+            description="Autopilot already picks topics from your website every week. Use this only to explore something specific."
         >
             <template #actions
-                ><Button size="sm" variant="ghost" @click="showAdvanced = !showAdvanced">{{ showAdvanced ? 'Hide' : 'Show' }}</Button></template
+                ><Button size="sm" variant="ghost" @click="showMore = !showMore">{{ showMore ? 'Hide' : 'Show' }}</Button></template
             >
-            <div v-if="showAdvanced" class="grid gap-4 lg:grid-cols-3">
+            <div v-if="showMore" class="grid gap-3">
                 <form
-                    class="grid gap-3 lg:col-span-2"
+                    class="grid gap-3"
                     @submit.prevent="
                         research.post(route('keywords.research', w.id), { preserveScroll: true, onSuccess: () => research.reset('seeds') })
                     "
@@ -225,18 +265,14 @@ const hasVolume = computed(() => props.keywords.data.some((k) => k.volume !== nu
                     <div class="flex flex-wrap items-end gap-2">
                         <div class="grid gap-1"><Label>Country</Label><Input v-model="research.locale" maxlength="2" class="w-20" /></div>
                         <div class="grid gap-1"><Label>Language</Label><Input v-model="research.language" class="w-20" /></div>
-                        <Button :disabled="research.processing || !research.seeds"><Search /> Research these</Button>
+                        <Button :disabled="research.processing || !research.seeds"><Search /> Research</Button>
                     </div>
-                    <p v-if="seeds.length" class="text-xs text-muted-foreground">Topics used so far: {{ seeds.join(', ') }}</p>
                 </form>
-                <form
-                    class="grid content-start gap-2"
-                    @submit.prevent="manual.post(route('keywords.store', w.id), { preserveScroll: true, onSuccess: () => manual.reset('keyword') })"
-                >
-                    <Label>Add one keyword</Label>
-                    <Input v-model="manual.keyword" placeholder="keyword" />
-                    <Button variant="outline" :disabled="!manual.keyword">Add</Button>
-                </form>
+                <p v-if="seeds.length" class="text-xs text-muted-foreground">Topics used so far: {{ seeds.join(', ') }}</p>
+                <p v-if="lastRun" class="text-xs text-muted-foreground">
+                    Last automatic research: <Badge :value="lastRun.status" /> {{ datetime(lastRun.started_at) }}
+                    <span v-if="lastRun.result_json?.seeds?.length"> · topics: {{ lastRun.result_json.seeds.join(', ') }}</span>
+                </p>
             </div>
         </Panel>
     </SeoLayout>
