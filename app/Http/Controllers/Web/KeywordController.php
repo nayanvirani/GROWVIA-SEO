@@ -6,6 +6,7 @@ use App\Domain\Content\ContentService;
 use App\Domain\Keyword\KeywordAdvisor;
 use App\Domain\Keyword\KeywordResearchService;
 use App\Http\Controllers\Controller;
+use App\Jobs\WriteKeywordContent;
 use App\Models\ContentBrief;
 use App\Models\Keyword;
 use App\Models\KeywordCluster;
@@ -63,6 +64,20 @@ class KeywordController extends Controller
         ]);
     }
 
+    /** Write the ready-to-paste section or title for a keyword, in the background (AI takes ~1 minute). */
+    public function write(Request $request, Website $website, Keyword $keyword): RedirectResponse
+    {
+        $this->authorize('update', $keyword);
+        $data = $request->validate([
+            'kind' => ['required', Rule::in(['section', 'title'])],
+            'page_id' => ['required', Rule::exists('website_pages', 'id')->where('website_id', $website->id)],
+        ]);
+        $keyword->update(['content_json' => ['status' => 'writing', 'kind' => $data['kind'], 'page_id' => $data['page_id']]]);
+        WriteKeywordContent::dispatch($keyword->id, $data['page_id'], $data['kind']);
+
+        return back()->with('success', 'Writing it now. It appears here in about a minute.');
+    }
+
     /** One click: plan content for a keyword (blog post or landing page) in Content Studio. */
     public function brief(Website $website, Keyword $keyword, ContentService $content): RedirectResponse
     {
@@ -80,8 +95,10 @@ class KeywordController extends Controller
             'source_notes' => $website->setting('brand_facts'),
         ]);
         $rec?->update(['status' => 'done']);
+        $brief = ContentBrief::forWebsite($website)->where('primary_keyword_id', $keyword->id)->latest()->first();
+        $content->queueGeneration($brief, false);
 
-        return redirect()->route('content.index', $website)->with('success', 'Brief created. Click "Generate draft" and the AI writes it for you to review.');
+        return redirect()->route('content.index', $website)->with('success', 'The AI is writing the full page now (about 2 minutes). It appears under Drafts, ready to review and copy.');
     }
 
     public function research(Request $request, Website $website): RedirectResponse

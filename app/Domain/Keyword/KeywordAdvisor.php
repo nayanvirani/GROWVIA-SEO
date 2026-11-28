@@ -36,7 +36,8 @@ class KeywordAdvisor
         $briefs = ContentBrief::forWebsite($website)->whereNotNull('primary_keyword_id')->withCount('drafts')->get()->keyBy('primary_keyword_id');
         $out = [];
 
-        $this->pages = WebsitePage::forWebsite($website)->where('status_code', 200)->get(['id', 'canonical_url', 'title', 'h1']);
+        $this->pages = WebsitePage::forWebsite($website)->where('status_code', 200)->get(['id', 'canonical_url', 'title', 'h1', 'headings_json']);
+        $this->context = $context;
         $seen = [];
         foreach ($keywords->sortByDesc('opportunity_score') as $k) {
             $advice = $this->one($website, $k, $context, $recs[$k->id] ?? null, $briefs[$k->id] ?? null);
@@ -50,7 +51,7 @@ class KeywordAdvisor
                     $seen[$topic] = $k->keyword;
                 }
             }
-            $out[$k->id] = $advice;
+            $out[$k->id] = $this->withContent($k, $advice);
         }
 
         return $out;
@@ -58,7 +59,51 @@ class KeywordAdvisor
 
     private Collection $pages;
 
-    public function __construct(private readonly KeywordResearchService $research) {}
+    private ?string $context = null;
+
+    /**
+     * Add what can be written for this action (a section or a new title), where it goes on the page,
+     * and any content already written.
+     */
+    private function withContent(Keyword $k, array $a): array
+    {
+        $a['write_kind'] = null;
+        $a['placement'] = null;
+        $a['content'] = null;
+        $a['content_status'] = null;
+        if ($a['group'] !== 'todo' || ! $a['page_url']) {
+            return $a;
+        }
+        $page = $this->pages->firstWhere('canonical_url', $a['page_url']);
+        if (! $page) {
+            return $a;
+        }
+        $a['page_id'] = $page->id;
+        $a['write_kind'] = $a['action'] === 'Put it in the page title' ? 'title' : 'section';
+        $path = parse_url($page->canonical_url, PHP_URL_PATH) ?: '/';
+        if ($a['write_kind'] === 'section') {
+            $a['placement'] = $this->writer->placement($page, $k->keyword, $this->context);
+            $a['steps'] = ['Click "Write this section for me" below. The AI writes the heading, paragraphs and a FAQ (about a minute).',
+                "Open {$path} in your website admin (edit the page).",
+                'Paste the section in the spot marked 📍 above. Use "Copy as HTML" if your editor has an HTML/code view, otherwise "Copy as text" and make the first line a Heading 2.',
+                'Check anything marked [check], then save and publish. The next weekly crawl confirms it.'];
+        } else {
+            $a['steps'] = ['Click "Write the new title for me" below.', "Open {$path} in your website admin and find its SEO settings.",
+                'Replace the SEO title and meta description with the ones shown, then save. The next weekly crawl confirms it.'];
+        }
+        $c = $k->content_json;
+        if ($c && ($c['page_id'] ?? null) === $page->id && ($c['kind'] ?? $a['write_kind']) === $a['write_kind']) {
+            $a['content_status'] = $c['status'] ?? null;
+            $a['content'] = ($c['status'] ?? null) === 'ready' ? $c : null;
+            $a['content_error'] = $c['error'] ?? null;
+        } elseif ($c && ($c['status'] ?? null) === 'writing') {
+            $a['content_status'] = 'writing';
+        }
+
+        return $a;
+    }
+
+    public function __construct(private readonly KeywordResearchService $research, private readonly KeywordContentWriter $writer) {}
 
     private function topicKey(string $keyword, ?string $context): string
     {

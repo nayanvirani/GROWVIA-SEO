@@ -40,6 +40,8 @@ TXT;
         'relevance_check' => ['results'],
         'listing_pack' => ['tagline', 'short_description', 'long_description'],
         'page_update' => ['summary'],
+        'section_write' => ['heading', 'paragraphs'],
+        'title_write' => ['title', 'meta_description'],
     ];
 
     public function __construct(private readonly AiProviderFactory $providers) {}

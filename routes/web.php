@@ -54,6 +54,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('keywords/{keyword}', [Web\KeywordController::class, 'destroy'])->name('keywords.destroy');
         Route::post('keywords/{keyword}/map', [Web\KeywordController::class, 'map'])->name('keywords.map');
         Route::post('keywords/{keyword}/brief', [Web\KeywordController::class, 'brief'])->name('keywords.brief');
+        Route::post('keywords/{keyword}/write', [Web\KeywordController::class, 'write'])->middleware('throttle:ai')->name('keywords.write');
         Route::get('keywords/export', [Web\KeywordController::class, 'export'])->name('keywords.export');
         Route::patch('clusters/{cluster}', [Web\KeywordController::class, 'updateCluster'])->name('keywords.clusters.update');
 

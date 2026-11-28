@@ -21,12 +21,14 @@ import {
     ExternalLink,
     FilePlus2,
     Hourglass,
+    Loader2,
     PenLine,
     Search,
     Sparkles,
     Trash2,
+    Wand2,
 } from 'lucide-vue-next';
-import { computed, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 interface Advice {
     group: 'todo' | 'planned' | 'done' | 'skip';
@@ -40,6 +42,20 @@ interface Advice {
     can_brief: boolean;
     recommendation_id: string | null;
     content_url?: string;
+    page_id?: string;
+    write_kind: 'section' | 'title' | null;
+    placement: { after: string | null; before: string | null; text: string } | null;
+    content_status: 'writing' | 'ready' | 'failed' | null;
+    content_error?: string | null;
+    content: {
+        kind: 'section' | 'title';
+        heading?: string;
+        paragraphs?: string[];
+        bullets?: string[];
+        faq?: { question: string; answer: string } | null;
+        title?: string;
+        meta_description?: string;
+    } | null;
 }
 interface Row {
     id: string;
@@ -87,6 +103,34 @@ const copy = (id: string, text: string) => {
     setTimeout(() => (copied.value = null), 1500);
 };
 const brief = (k: Row) => router.post(route('keywords.brief', [w.value.id, k.id]));
+const write = (k: Row) =>
+    router.post(
+        route('keywords.write', [w.value.id, k.id]),
+        { kind: k.advice.write_kind, page_id: k.advice.page_id },
+        { preserveScroll: true, preserveState: true },
+    );
+
+/** The written section as plain text and as HTML, ready to paste into a website editor. */
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const asText = (c: NonNullable<Advice['content']>) =>
+    [c.heading, ...(c.paragraphs ?? []), ...(c.bullets ?? []).map((b) => '• ' + b), c.faq ? `\n${c.faq.question}\n${c.faq.answer}` : '']
+        .filter(Boolean)
+        .join('\n\n');
+const asHtml = (c: NonNullable<Advice['content']>) =>
+    [
+        `<h2>${esc(c.heading ?? '')}</h2>`,
+        ...(c.paragraphs ?? []).map((p) => `<p>${esc(p)}</p>`),
+        c.bullets?.length ? `<ul>\n${c.bullets.map((b) => `  <li>${esc(b)}</li>`).join('\n')}\n</ul>` : '',
+        c.faq ? `<h3>${esc(c.faq.question)}</h3>\n<p>${esc(c.faq.answer)}</p>` : '',
+    ]
+        .filter(Boolean)
+        .join('\n');
+
+// While the AI is writing, refresh every few seconds so the content appears by itself.
+const writing = computed(() => props.keywords.data.some((k) => k.advice.content_status === 'writing'));
+let timer: number | undefined;
+onMounted(() => (timer = window.setInterval(() => writing.value && router.reload({ only: ['keywords'] }), 5000)));
+onBeforeUnmount(() => clearInterval(timer));
 const remove = (k: Row) => router.delete(route('keywords.destroy', [w.value.id, k.id]), { preserveScroll: true });
 const runAuto = () => router.post(route('automation.run', [w.value.id, 'keyword_research']), {}, { preserveScroll: true });
 
@@ -186,9 +230,67 @@ const intentHelp: Record<string, string> = {
                                 >open page <ExternalLink class="h-3 w-3"
                             /></a>
                         </p>
+                        <p
+                            v-if="k.advice.placement"
+                            class="rounded-md border border-blue-200 bg-blue-50 p-2 text-blue-950 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100"
+                        >
+                            📍 {{ k.advice.placement.text }}
+                        </p>
                     </div>
-                    <!-- WHAT TO WRITE -->
-                    <div v-if="k.advice.suggestion" class="grid gap-1">
+
+                    <!-- WHAT TO WRITE: full content when written -->
+                    <div v-if="k.advice.content?.kind === 'section'" class="grid gap-2">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-xs font-medium uppercase text-muted-foreground">What to write — ready to paste</p>
+                            <span class="flex gap-2">
+                                <Button size="sm" variant="outline" @click="copy(k.id + 'txt', asText(k.advice.content))"
+                                    ><Check v-if="copied === k.id + 'txt'" /><Copy v-else /> Copy as text</Button
+                                >
+                                <Button size="sm" variant="outline" @click="copy(k.id + 'html', asHtml(k.advice.content))"
+                                    ><Check v-if="copied === k.id + 'html'" /><Copy v-else /> Copy as HTML</Button
+                                >
+                            </span>
+                        </div>
+                        <div class="rounded-md border bg-background p-3">
+                            <p class="text-xs text-muted-foreground">Heading (H2)</p>
+                            <h3 class="mb-2 text-base font-semibold">{{ k.advice.content.heading }}</h3>
+                            <p v-for="(p, i) in k.advice.content.paragraphs" :key="i" class="mb-2 leading-relaxed">{{ p }}</p>
+                            <ul v-if="k.advice.content.bullets?.length" class="mb-2 list-disc pl-5">
+                                <li v-for="b in k.advice.content.bullets" :key="b">{{ b }}</li>
+                            </ul>
+                            <div v-if="k.advice.content.faq" class="mt-2 border-t pt-2">
+                                <p class="text-xs text-muted-foreground">FAQ (add to the page's FAQ, or as a small heading under the section)</p>
+                                <p class="font-medium">{{ k.advice.content.faq.question }}</p>
+                                <p>{{ k.advice.content.faq.answer }}</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Check anything marked [check] before publishing: the AI only knows what is on your page and in your brand facts.
+                        </p>
+                    </div>
+                    <div v-else-if="k.advice.content?.kind === 'title'" class="grid gap-2">
+                        <p class="text-xs font-medium uppercase text-muted-foreground">What to write — paste into the page's SEO settings</p>
+                        <div
+                            v-for="[label, value] in [
+                                ['SEO title', k.advice.content.title],
+                                ['Meta description', k.advice.content.meta_description],
+                            ]"
+                            :key="label"
+                            class="flex items-start justify-between gap-2 rounded-md border bg-background p-2"
+                        >
+                            <span
+                                ><span class="text-xs text-muted-foreground">{{ label }} ({{ (value ?? '').length }} chars):</span><br />{{
+                                    value
+                                }}</span
+                            >
+                            <button class="shrink-0 text-primary" :title="`Copy ${label}`" @click="copy(k.id + label, value ?? '')">
+                                <Check v-if="copied === k.id + label" class="h-4 w-4" /><Copy v-else class="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- WHAT TO WRITE: not written yet -->
+                    <div v-else-if="k.advice.suggestion" class="grid gap-2">
                         <p class="text-xs font-medium uppercase text-muted-foreground">What to write — {{ k.advice.suggestion.label }}</p>
                         <div class="flex items-start justify-between gap-2 rounded-md border bg-muted/40 p-2">
                             <span class="font-medium">{{ k.advice.suggestion.text }}</span>
@@ -199,7 +301,16 @@ const intentHelp: Record<string, string> = {
                         <ul v-if="k.advice.outline?.length" class="list-disc pl-5 text-muted-foreground">
                             <li v-for="o in k.advice.outline" :key="o">{{ o }}</li>
                         </ul>
+                        <p v-if="k.advice.content_status === 'writing'" class="flex items-center gap-2 text-sm text-blue-700">
+                            <Loader2 class="h-4 w-4 animate-spin" /> The AI is writing the
+                            {{ k.advice.write_kind === 'title' ? 'new title and description' : 'full section' }}… about a minute. It appears here by
+                            itself.
+                        </p>
+                        <p v-else-if="k.advice.content_status === 'failed'" class="text-sm text-red-700">
+                            Writing failed: {{ k.advice.content_error }}
+                        </p>
                     </div>
+
                     <!-- HOW -->
                     <div v-if="k.advice.steps.length" class="grid gap-1">
                         <p class="text-xs font-medium uppercase text-muted-foreground">How</p>
@@ -209,9 +320,17 @@ const intentHelp: Record<string, string> = {
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
-                        <Button v-if="canWork && k.advice.can_brief" size="sm" @click="brief(k)"
-                            ><FilePlus2 /> Create brief (AI writes the draft)</Button
+                        <Button v-if="canWork && k.advice.write_kind && k.advice.content_status !== 'writing'" size="sm" @click="write(k)"
+                            ><Wand2 />
+                            {{
+                                k.advice.content
+                                    ? 'Write it again'
+                                    : k.advice.write_kind === 'title'
+                                      ? 'Write the new title for me'
+                                      : 'Write this section for me'
+                            }}</Button
                         >
+                        <Button v-if="canWork && k.advice.can_brief" size="sm" @click="brief(k)"><FilePlus2 /> Write the full page for me</Button>
                         <Link v-if="k.advice.content_url" :href="k.advice.content_url"><Button size="sm">Open Content Studio</Button></Link>
                         <Link v-if="k.advice.recommendation_id" :href="route('recommendations.index', w.id)"
                             ><Button size="sm" variant="outline">See in “What to update”</Button></Link

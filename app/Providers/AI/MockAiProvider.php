@@ -29,6 +29,14 @@ class MockAiProvider implements AiContentProvider
             'seed_topics' => $this->seedTopics($context),
             'listing_pack' => [],
             'page_update' => ['summary' => 'Apply the change described above.'],
+            'section_write' => [
+                'heading' => Str::ucfirst($this->kw($context)),
+                'paragraphs' => ['[Offline demo text] Explain '.$this->kw($context).' in plain words for a store owner. [check]',
+                    '[Offline demo text] Describe how '.$this->site($context).' helps, using only facts from your page. [check]'],
+                'bullets' => [],
+                'faq' => ['question' => 'What is '.$this->kw($context).'?', 'answer' => '[Offline demo text] Short, factual answer. [check]'],
+            ],
+            'title_write' => ['title' => Str::limit(Str::title($this->kw($context)).' | '.$this->site($context), 60, ''), 'meta_description' => 'Learn about '.$this->kw($context).' with '.$this->site($context).'. [Offline demo text]'],
             default => [],
         };
 
