@@ -45,7 +45,7 @@ class OpenAiCompatibleProvider implements AiContentProvider
         ];
 
         // Long articles need time; short tasks (outreach, intent, relevance) should fail fast.
-        $timeout = in_array($task, self::LONG_TASKS, true) ? 180 : 60;
+        $timeout = in_array($task, self::LONG_TASKS, true) ? 180 : 120;
         $response = $this->post('/chat/completions', $payload, $timeout);
         if ($response->status() === 400 && str_contains(strtolower($response->body()), 'response_format')) {
             unset($payload['response_format']); // provider/model without JSON mode

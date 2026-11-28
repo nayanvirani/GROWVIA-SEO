@@ -20,7 +20,7 @@ class DraftOutreach implements ShouldBeUnique, ShouldQueue
 
     public array $backoff = [120];
 
-    public int $timeout = 200;
+    public int $timeout = 420;
 
     public function __construct(public string $prospectId)
     {
